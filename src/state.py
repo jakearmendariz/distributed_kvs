@@ -31,15 +31,14 @@ class State():
         sId                       = 1
         index                     = 0
         remainder                 = len(self.view) % int(self.repl_factor)
-        for x in range(self.shard_count):
-            for y in range(int(self.repl_factor)):
+        for _ in range(self.shard_count):
+            for _ in range(int(self.repl_factor)):
                 self.global_shard_id_dict.update({self.view[index]:sId})
                 index += 1
             sId += 1
         if( remainder != 0 ):
-            for z in range(index, len(self.view)):
-                self.global_shard_id_dict.update({self.view[index]:sId})
-                index += 1
+            for x in range(index, len(self.view)):
+                self.global_shard_id_dict.update({self.view[x]:sId})
         # Local shard Id
         self.shard_id = self.global_shard_id_dict[self.address]
         # creating localShardView
