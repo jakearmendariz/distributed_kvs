@@ -1,0 +1,4 @@
+GREATER_THAN = 0
+LESS_THAN    = 1
+EQUAL        = 2
+CONCURRENT   = 3

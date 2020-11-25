@@ -10,14 +10,10 @@ import requests
 import random
 import threading
 import copy
+import constants
 
 class State():
     def __init__(self): 
-        #VC_comparator return values
-        self.GREATER_THAN = 0
-        self.LESS_THAN    = 1
-        self.EQUAL        = 2
-        self.CONCURRENT   = 3
         #self.view is the latest view. List of sorted addresses.
         self.view = sorted(os.environ.get('VIEW').split(','))
         #copy of self.view
@@ -27,23 +23,23 @@ class State():
         # Maximum number of replicas each shard should have
         self.repl_factor = os.environ["REPL_FACTOR"]
         #Vector clock data structure
-        self.VC = {}
+        self.vector_clock = {}
         #Initializing vector clock data structure
         for address in range(len(self.view)):
-            self.VC.update({self.view[address]:0})
+            self.vector_clock.update({self.view[address]:0})
         # dictionary of all addresses in global view and their shard id's
-        self.global_shard_id_dict = {}
+        self.global_shard_map = {}
         # List of all addresses in local view (shard or cluster) and their shard id's
         self.local_shard_view = [] 
-        # Populating global_shard_id_dict (thank you Jake)
+        # Populating global_shard_map (thank you Jake)
         for address in range(len(self.view)):
             shard_id = ((address//int(self.repl_factor)) + 1)
-            self.global_shard_id_dict.update({self.view[address]:shard_id})
+            self.global_shard_map.update({self.view[address]:shard_id})
         # shard_id is the local replica's shard id
-        self.shard_id = self.global_shard_id_dict[self.address]
+        self.shard_id = self.global_shard_map[self.address]
         # Populating local_shard_view
-        for address in self.global_shard_id_dict:
-            if(self.global_shard_id_dict[address] == self.shard_id):
+        for address in self.global_shard_map:
+            if(self.global_shard_map[address] == self.shard_id):
                 self.local_shard_view.append(address)
         #copy of local_shard_view
         self.local_shard_view_copy = copy.deepcopy(self.local_shard_view)
@@ -68,40 +64,24 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def return_VC(self):
-        return self.VC
+    #compares self.vector_clock to incoming_vc
+    def vector_clock_comparator(self, incoming_vc):
+        vc1_flag = vc2_flag = False
 
-    def update_VC(self, addr, vc_value):
-        self.VC[addr] = vc_value
-    
-    def replace_VC(self, VC):
-        self.VC.clear()
-        self.VC.update(VC)
-    
-    def VC_comparator(self, VC1, VC2):
-
-        #compares VC1 to VC2; 
-        # if VC1 is greater than VC2, return GREATER_THAN
-        # if VC1 is less than VC2, return LESS_THAN
-        # if VC1 is concurrent with VC2, return CONCURRENT
-        # if VC1 is equal to VC2, return EQUAL
-
-        vc1_bool = False
-        vc2_bool = False
-
-        for x in VC1:
-            if(VC1[x] < VC2[x]):
-                vc2_bool = True
-            if(VC1[x] > VC2[x]):
-                vc1_bool = True
-        if(vc1_bool == True and vc2_bool == False):
-            return self.GREATER_THAN
-        if(vc2_bool == True and vc1_bool == False):
-            return self.LESS_THAN
-        if(vc1_bool == True and vc2_bool == True):
-            return self.CONCURRENT
-        if(vc1_bool == False and vc2_bool == False):
-            return self.EQUAL
+        for x in self.vector_clock.keys():
+            if self.vector_clock[x] < incoming_vc[x]:
+                vc2_flag = True
+            if self.vector_clock[x] > incoming_vc[x]:
+                vc1_flag = True
+        
+        if vc1_flag and not vc2_flag:
+            return constants.GREATER_THAN
+        elif vc2_flag and not vc1_flag:
+            return constants.LESS_THAN
+        elif vc1_flag and vc2_flag:
+            return constants.CONCURRENT
+        else:
+            return constants.EQUAL
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
