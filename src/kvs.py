@@ -11,6 +11,7 @@ from state import State
 import logging
 import sys
 import _thread
+import copy
 
 
 global state
@@ -18,18 +19,28 @@ global state
 def build_state():
     global state
     state = State()
-    app.logger.info("This is state.view from build_state():")
-    app.logger.info(state.view)
-    app.logger.info("This is replication factor from build_state():") 
-    app.logger.info(state.repl_factor)
-    app.logger.info("This is shard count from build_state():")
-    app.logger.info(state.shard_count)
-    app.logger.info("This is globalShardIdDict from build_state():")
-    app.logger.info(state.global_shard_id_dict)
-    app.logger.info("This is self.VC from build_state():")
-    app.logger.info(str(state.VC.returnVC()))
-    app.logger.info("This is the local shard view from build_state():")
-    app.logger.info(str(state.local_shard_view))
+    # Upon startup contact all other replicas in the cluster
+    # and appropriate the most up-to-date store and VC
+    # by keeping a running max of the VC's
+    # that you encounter as you go
+    for address in range(len(state.local_shard_view)):
+        addr       = state.local_shard_view[address]
+        local_addr = state.address
+        if(addr != local_addr):
+            try:
+                response = requests.get(f'http://{addr}/kvs/update', timeout=5)
+                incoming_store = response.json()["store"]
+                incoming_VC    = response.json()["VC"]
+                verdict        = state.VC_comparator(state.return_VC(), incoming_VC)
+                if(verdict == state.LESS_THAN):
+                    state.replace_VC(incoming_VC)
+                    state.storage.clear()
+                    state.storage.update(incoming_store)
+            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, 
+            requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as e:
+                state.local_shard_view_copy.remove(addr)
+                state.view_copy.remove(addr)
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 view change
@@ -106,6 +117,13 @@ def add(key):
     if len(key) > 50 : return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
     address = state.maps_to(key)
     if address == state.address:
+
+        #TODO
+        # determine logic for how to deal with causal consistency 
+        # (how/when to update vector clock)
+        # (how/when to add data to local storage)
+        # This is the hard part.  We need everyone's brains!  I'm too stupid!
+
         replace = key in state.storage
         message = "Updated successfully" if replace else "Added successfully"
         status_code = 200 if replace else 201
@@ -113,10 +131,22 @@ def add(key):
         return json.dumps({"message":message,"replaced":replace}), status_code
     else:
         app.logger.info("This is from the else case of the add() funct")
-        response = requests.put(f'http://{address}/kvs/keys/{key}', json = request.get_json(), timeout=6, headers = {"Content-Type": "application/json"})
-        proxy_response = response.json()
-        proxy_response['address'] = address
-        return proxy_response, response.status_code
+        try:
+            response = requests.put(f'http://{address}/kvs/keys/{key}', json = request.get_json(), timeout=6, headers = {"Content-Type": "application/json"})
+            proxy_response = response.json()
+            proxy_response['address'] = address
+            return proxy_response, response.status_code
+        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, 
+        requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as e:
+            #we may want to have a running list of up nodes and down nodes, so 
+            #I added the below lines of code to this except block
+            #if it turns out we don't use these copies of the lists
+            # then we can just get rid of the lines below
+            if(address in state.local_shard_view_copy):
+                state.local_shard_view_copy.remove(address)
+            if(address in state.view_copy):
+                state.view_copy.remove(address)
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
 
 
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
@@ -133,3 +163,15 @@ def delete(key):
         proxy_response = response.json()
         proxy_response['address'] = address
         return proxy_response, response.status_code
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+replica comms
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+@app.route('/kvs/update', methods=["GET"])
+def return_replica_data():
+    global state
+    payload = {"store":state.storage, "VC":state.return_VC()}
+    return json.dumps(payload), 200
+
+
+

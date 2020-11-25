@@ -9,42 +9,44 @@ import os
 import requests
 import random
 import threading
-from VectorClock import *
+import copy
 
 class State():
-    def __init__(self):
-        # self.address is address of the current node.
+    def __init__(self): 
+        #VC_comparator return values
+        self.GREATER_THAN = 0
+        self.LESS_THAN    = 1
+        self.EQUAL        = 2
+        self.CONCURRENT   = 3
+        #self.view is the latest view. List of sorted addresses.
+        self.view = sorted(os.environ.get('VIEW').split(','))
+        #copy of self.view
+        self.view_copy = copy.deepcopy(self.view) 
+        #self.address is address of the current node.
         self.address = os.environ.get('ADDRESS')
+        # Maximum number of replicas each shard should have
+        self.repl_factor = os.environ["REPL_FACTOR"]
+        #Vector clock data structure
+        self.VC = {}
+        #Initializing vector clock data structure
+        for address in range(len(self.view)):
+            self.VC.update({self.view[address]:0})
         # dictionary of all addresses in global view and their shard id's
         self.global_shard_id_dict = {}
         # List of all addresses in local view (shard or cluster) and their shard id's
-        self.local_shard_view     = []
-        # Maximum number of replicas each shard should have
-        self.repl_factor          = os.environ["REPL_FACTOR"] 
-        # self.view is the latest view. List of sorted addresses.
-        self.view                 = sorted(os.environ.get('VIEW').split(','))
-        # Dictionary form of local vector clock for tracking events in all nodes
-        self.VC                   = VectorClocks(self.view)
-        # shardCount is the number of shards there should be with max replication
-        self.shard_count          = len(self.view) // int(self.repl_factor)
-        # Creating the globalShardIdDict
-        sId                       = 1
-        index                     = 0
-        remainder                 = len(self.view) % int(self.repl_factor)
-        for _ in range(self.shard_count):
-            for _ in range(int(self.repl_factor)):
-                self.global_shard_id_dict.update({self.view[index]:sId})
-                index += 1
-            sId += 1
-        if( remainder != 0 ):
-            for x in range(index, len(self.view)):
-                self.global_shard_id_dict.update({self.view[x]:sId})
-        # Local shard Id
+        self.local_shard_view = [] 
+        # Populating global_shard_id_dict (thank you Jake)
+        for address in range(len(self.view)):
+            shard_id = ((address//int(self.repl_factor)) + 1)
+            self.global_shard_id_dict.update({self.view[address]:shard_id})
+        # shard_id is the local replica's shard id
         self.shard_id = self.global_shard_id_dict[self.address]
-        # creating localShardView
+        # Populating local_shard_view
         for address in self.global_shard_id_dict:
             if(self.global_shard_id_dict[address] == self.shard_id):
                 self.local_shard_view.append(address)
+        #copy of local_shard_view
+        self.local_shard_view_copy = copy.deepcopy(self.local_shard_view)
         # self.map stores the hash value to address mapping.
         self.map = {}
         # The number of node replica for one address.
@@ -52,7 +54,7 @@ class State():
         for address in self.view:
             self.hash_and_store_address(address)
         # The list of total keys in the map.
-        self.indicies = sorted(self.map.keys())
+        self.indices = sorted(self.map.keys())
         # The primary kv store.
         self.storage = {}
     
@@ -62,6 +64,44 @@ class State():
             self.map[hash] = address
             hash = State.hash_key(hash)
             self.map[hash] = address
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    vector clock functions
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def return_VC(self):
+        return self.VC
+
+    def update_VC(self, addr, vc_value):
+        self.VC[addr] = vc_value
+    
+    def replace_VC(self, VC):
+        self.VC.clear()
+        self.VC.update(VC)
+    
+    def VC_comparator(self, VC1, VC2):
+
+        #compares VC1 to VC2; 
+        # if VC1 is greater than VC2, return GREATER_THAN
+        # if VC1 is less than VC2, return LESS_THAN
+        # if VC1 is concurrent with VC2, return CONCURRENT
+        # if VC1 is equal to VC2, return EQUAL
+
+        vc1_bool = False
+        vc2_bool = False
+
+        for x in VC1:
+            if(VC1[x] < VC2[x]):
+                vc2_bool = True
+            if(VC1[x] > VC2[x]):
+                vc1_bool = True
+        if(vc1_bool == True and vc2_bool == False):
+            return self.GREATER_THAN
+        if(vc2_bool == True and vc1_bool == False):
+            return self.LESS_THAN
+        if(vc1_bool == True and vc2_bool == True):
+            return self.CONCURRENT
+        if(vc1_bool == False and vc2_bool == False):
+            return self.EQUAL
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
@@ -75,7 +115,7 @@ class State():
         app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
-        self.indicies = sorted(self.map.keys())
+        self.indices = sorted(self.map.keys())
         app.logger.info("Node change complete: " + str(len(self.map.values())) + " nodes.")
     
     def key_migration(self, view):
@@ -132,20 +172,20 @@ class State():
         #binary search the key greater than the key provided
         key_hash = State.hash_key(key)
         #if smallest value seen, or greatest value, this key should be stored in the first node. 
-        if self.indicies[0] >= key_hash or self.indicies[-1] < key_hash:
-            return self.map[self.indicies[0]]
-        l,r = 0, len(self.indicies)-2
+        if self.indices[0] >= key_hash or self.indices[-1] < key_hash:
+            return self.map[self.indices[0]]
+        l,r = 0, len(self.indices)-2
         # Find the section of this key in the ring.
         while(l < r):
             mid = (l+r)//2
-            if self.indicies[mid] <= key_hash and self.indicies[mid+1] >= key_hash:
-                return self.map[self.indicies[mid+1]]
-            elif self.indicies[mid] > key_hash:
+            if self.indices[mid] <= key_hash and self.indices[mid+1] >= key_hash:
+                return self.map[self.indices[mid+1]]
+            elif self.indices[mid] > key_hash:
                 r = mid
-            elif self.indicies[mid+1] < key_hash:
+            elif self.indices[mid+1] < key_hash:
                 l = mid+1
         
-        return self.map[self.indicies[-1]]
+        return self.map[self.indices[-1]]
     
     @staticmethod
     def hash_key(key):
