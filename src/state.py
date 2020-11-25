@@ -14,58 +14,51 @@ import constants
 
 class State():
     def __init__(self): 
-        #self.view is the latest view. List of sorted addresses.
+        # SHARD
         self.view = sorted(os.environ.get('VIEW').split(','))
-        #copy of self.view
-        self.view_copy = copy.deepcopy(self.view) 
-        #self.address is address of the current node.
         self.address = os.environ.get('ADDRESS')
-        # Maximum number of replicas each shard should have
-        self.repl_factor = os.environ["REPL_FACTOR"]
-        #Vector clock data structure
-        self.vector_clock = {}
-        #Initializing vector clock data structure
-        for address in range(len(self.view)):
-            self.vector_clock.update({self.view[address]:0})
+        repl_factor = os.environ["REPL_FACTOR"]
         # dictionary of all addresses in global view and their shard id's
-        self.global_shard_map = {}
-        # List of all addresses in local view (shard or cluster) and their shard id's
-        self.local_shard_view = [] 
-        # Populating global_shard_map (thank you Jake)
-        for address in range(len(self.view)):
-            shard_id = ((address//int(self.repl_factor)) + 1)
-            self.global_shard_map.update({self.view[address]:shard_id})
-        # shard_id is the local replica's shard id
-        self.shard_id = self.global_shard_map[self.address]
-        # Populating local_shard_view
-        for address in self.global_shard_map:
-            if(self.global_shard_map[address] == self.shard_id):
-                self.local_shard_view.append(address)
-        #copy of local_shard_view
-        self.local_shard_view_copy = copy.deepcopy(self.local_shard_view)
-        # self.map stores the hash value to address mapping.
-        self.map = {}
-        # The number of node replica for one address.
-        self.node_replica = 2048
+        self.shard_map = {address:(index//int(repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_id = self.shard_map[self.address]
+        # The number of virtual nodes per node
+        self.virtual_map = {}
         for address in self.view:
             self.hash_and_store_address(address)
-        # The list of total keys in the map.
-        self.indices = sorted(self.map.keys())
-        # The primary kv store.
+        self.indices = sorted(self.virtual_map.keys())
+
+        #REPLICA
         self.storage = {}
-    
-    def hash_and_store_address(self, address):
-        hash = State.hash_key(address)
-        for _ in range(self.node_replica):
-            self.map[hash] = address
-            hash = State.hash_key(hash)
-            self.map[hash] = address
+        self.local_view = [address for address in self.shard_map if self.shard_map[address] == self.shard_id]
+        self.vector_clock = {address:0 for address in self.local_view}
+        # ask other nodes in shard for their values upon startup
+        self.start_up()
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def start_up(self):
+        # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
+        # by keeping a running max of the VC's that you encounter as you go
+        for address in self.view:
+            if(address != self.address):
+                try:
+                    response = requests.get(f'http://{address}/kvs/update', timeout=5).json()
+                    version = self.compare_to(response['vector_clock'])
+                    if version == constants.LESS_THAN:
+                        self.vector_clock = response['vector_clock']
+                        self.storage = response['store']
+                    elif version == constants.GREATER_THAN:
+                        # TODO send the values
+                        pass
+                    elif version == constants.CONCURRENT:
+                        #TODO find the leader, solve for difference
+                        pass
+                except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
+                    app.info.info("server is down")
+    
     #compares self.vector_clock to incoming_vc
-    def vector_clock_comparator(self, incoming_vc):
+    def compare_to(self, incoming_vc):
         vc1_flag = vc2_flag = False
 
         for x in self.vector_clock.keys():
@@ -82,32 +75,11 @@ class State():
             return constants.CONCURRENT
         else:
             return constants.EQUAL
+    
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def node_change(self, view):
-        app.logger.info("Node change starts: " + str(len(self.map.values())) + " nodes.")
-        
-        if set(view) == set(self.view):
-            app.logger.info("No view change")
-            return
-        app.logger.info("View changed from " + str(self.view) + " to " + str(view))
-        self.add_nodes(set(view) - set(self.view))
-        self.delete_nodes(set(self.view) - set(view))
-        self.indices = sorted(self.map.keys())
-        app.logger.info("Node change complete: " + str(len(self.map.values())) + " nodes.")
-    
-    def key_migration(self, view):
-        app.logger.info("Key migration starts")
-
-        for key in list(self.storage.keys()):
-            address = self.maps_to(key)
-            if self.address != address:
-                requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
-                del self.storage[key]
-        self.view = sorted(list(view))
-
     def broadcast_view(self, view, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
@@ -125,6 +97,28 @@ class State():
                 threads[-1].start()
             for thread in threads:
                 thread.join()
+    
+    def node_change(self, view):
+        app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
+        
+        if set(view) == set(self.view):
+            app.logger.info("No view change")
+            return
+        app.logger.info("View changed from " + str(self.view) + " to " + str(view))
+        self.add_nodes(set(view) - set(self.view))
+        self.delete_nodes(set(self.view) - set(view))
+        self.indices = sorted(self.virtual_map.keys())
+        app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
+
+    def key_migration(self, view):
+        app.logger.info("Key migration starts")
+        self.indices = sorted(self.virtual_map.keys())
+        for key in list(self.storage.keys()):
+            address = self.maps_to(key)
+            if self.address != address:
+                requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
+                del self.storage[key]
+        self.view = sorted(list(view))
 
     @staticmethod
     def send_node_change(address, view):
@@ -140,11 +134,10 @@ class State():
     
     def delete_nodes(self, deleting):
         if len(deleting) > 0:
-            for hash_key in list(self.map.keys()):
-                if self.map[hash_key] in deleting:
-                    del self.map[hash_key]
+            for hash_key in list(self.virtual_map.keys()):
+                if self.virtual_map[hash_key] in deleting:
+                    del self.virtual_map[hash_key]
     
-
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     hash to a node
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -153,20 +146,27 @@ class State():
         key_hash = State.hash_key(key)
         #if smallest value seen, or greatest value, this key should be stored in the first node. 
         if self.indices[0] >= key_hash or self.indices[-1] < key_hash:
-            return self.map[self.indices[0]]
+            return self.virtual_map[self.indices[0]]
         l,r = 0, len(self.indices)-2
         # Find the section of this key in the ring.
         while(l < r):
             mid = (l+r)//2
             if self.indices[mid] <= key_hash and self.indices[mid+1] >= key_hash:
-                return self.map[self.indices[mid+1]]
+                return self.virtual_map[self.indices[mid+1]]
             elif self.indices[mid] > key_hash:
                 r = mid
             elif self.indices[mid+1] < key_hash:
                 l = mid+1
         
-        return self.map[self.indices[-1]]
-    
+        return self.virtual_map[self.indices[-1]]
+
+    def hash_and_store_address(self, address):
+        hash = State.hash_key(address)
+        for _ in range(constants.VIRTUAL_NODE_COUNT):
+            self.virtual_map[hash] = address
+            hash = State.hash_key(hash)
+            self.virtual_map[hash] = address
+
     @staticmethod
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
