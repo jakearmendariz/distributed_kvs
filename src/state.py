@@ -14,12 +14,13 @@ import constants
 
 class State():
     def __init__(self): 
-        # SHARD
         self.view = sorted(os.environ.get('VIEW').split(','))
         self.address = os.environ.get('ADDRESS')
-        repl_factor = os.environ["REPL_FACTOR"]
+        self.repl_factor = os.environ["REPL_FACTOR"]
+        
+        # SHARD
         # dictionary of all addresses in global view and their shard id's
-        self.shard_map = {address:(index//int(repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
         self.shard_id = self.shard_map[self.address]
         # The number of virtual nodes per node
         self.virtual_map = {}
@@ -29,10 +30,11 @@ class State():
 
         #REPLICA
         self.storage = {}
-        self.local_view = [address for address in self.shard_map if self.shard_map[address] == self.shard_id]
+        self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.vector_clock = {address:0 for address in self.local_view}
         # ask other nodes in shard for their values upon startup
         self.start_up()
+        self.queue = {address:{} for address in self.local_view}
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
@@ -64,17 +66,13 @@ class State():
         for x in self.vector_clock.keys():
             if self.vector_clock[x] < incoming_vc[x]:
                 vc2_flag = True
-            if self.vector_clock[x] > incoming_vc[x]:
+            elif self.vector_clock[x] > incoming_vc[x]:
                 vc1_flag = True
         
-        if vc1_flag and not vc2_flag:
-            return constants.GREATER_THAN
-        elif vc2_flag and not vc1_flag:
-            return constants.LESS_THAN
-        elif vc1_flag and vc2_flag:
-            return constants.CONCURRENT
-        else:
-            return constants.EQUAL
+        if vc1_flag and not vc2_flag: return constants.GREATER_THAN
+        elif vc2_flag and not vc1_flag: return constants.LESS_THAN
+        elif vc1_flag and vc2_flag: return constants.CONCURRENT
+        else: return constants.EQUAL
     
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -170,3 +168,8 @@ class State():
     @staticmethod
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    Forwarding requests
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    # def forward_to_shard(self, reques)
