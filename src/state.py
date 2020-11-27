@@ -16,7 +16,7 @@ class State():
     def __init__(self): 
         self.view = sorted(os.environ.get('VIEW').split(','))
         self.address = os.environ.get('ADDRESS')
-        self.repl_factor = os.environ["REPL_FACTOR"]
+        self.repl_factor = int(os.environ["REPL_FACTOR"])
         
         # SHARD
         # dictionary of all addresses in global view and their shard id's
@@ -33,7 +33,7 @@ class State():
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.vector_clock = {address:0 for address in self.local_view}
         # ask other nodes in shard for their values upon startup
-        self.start_up()
+        # self.start_up()
         self.queue = {address:{} for address in self.local_view}
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -57,7 +57,7 @@ class State():
                         #TODO find the leader, solve for difference
                         pass
                 except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-                    app.info.info("server is down")
+                    app.logger.info("server is down")
     
     #compares self.vector_clock to incoming_vc
     def compare_to(self, incoming_vc):

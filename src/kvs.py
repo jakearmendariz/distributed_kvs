@@ -13,7 +13,10 @@ import sys
 import _thread
 import copy
 
-
+class Http_Error():
+    def __init__(self, status_code, msg = "Error"):
+        self.status_code = status_code
+        self.msg = msg
 global state
 @app.before_first_request
 def build_state():
@@ -78,6 +81,7 @@ def get(key):
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET"}), 404
     else:
         # Attempt to send to every address in a shard, first one that doesn't tine 
+        shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
             response = send_get(address, key)
@@ -91,7 +95,7 @@ def send_get(address, key):
     try:
         response = requests.get(f'http://{address}/kvs/{key}', timeout=2)
     except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-        response = {'status_code': 500}
+        response = Http_Error(500)
     finally:
         return response
 
@@ -107,8 +111,10 @@ def put(key):
         # TODO determine logic for how to deal with causal consistency 
         # Send a PUT request to store data for every replica
         self_response = None
-        for i in range(state.repl_factor):
-            address = state.view[shard_id*state.repl_factor + i]
+        for address in set(state.local_view) - set(state.address):
+            # shard_id -= 1
+            # app.logger.info(f'state.shard_id:{state.shard_id} \nplace inside of view: {shard_id*state.repl_factor + i}')
+            # address = state.view[shard_id*state.repl_factor + i-1]
             response = send_put(address, key, request.get_json())
             if address == state.address:
                 self_response = response
@@ -118,9 +124,10 @@ def put(key):
         return self_response.json(), self_response.status_code
     else:
         # try sending to every node inside of shard, first successful quit
-       for i in range(state.repl_factor):
+        shard_id -= 1
+        for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = send_put_global(address, key, request.get_json(), shard = True)
+            response = send_put(address, key, request.get_json(), shard = True)
             status_code = response.status_code
             if status_code == 200 or status_code == 201:
                 return response.json(), status_code       
@@ -129,36 +136,49 @@ def put(key):
 # Handles errors, helps when forwarding to dead nodes
 # By default this will send to a non forwarding endpoint (a replica)
 def send_put(address, key, request_json, shard = False):
+    response = None
     try:
         if not shard:
-            response = requests.put(f'http://{address}/kvs/{key}', json = request_json(), timeout=2, headers = {"Content-Type": "application/json"})
+            response = requests.put(f'http://{address}/kvs/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
         else:
-            response = requests.put(f'http://{address}/kvs/keys/{key}', json = request_json(), timeout=2, headers = {"Content-Type": "application/json"})
+            response = requests.put(f'http://{address}/kvs/keys/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
     except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-        response = {'status_code': 500}
-    finally:
-        return response
+        response = Http_Error(500)
+    return response
 
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
     global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]    
+    app.logger.info(f'{state.shard_id} is deleting key:{key} from shard:{shard_id}')
     if shard_id == state.shard_id:
         # Tell every other replica to delete
-        for replica_address in set(state.view[shard_id*state.repl_factor:(shard_id+1)*state.repl_factor])- state.address:
-            requests.delete(f'http://{replica_address}/kvs/keys/{key}', timeout=2, headers = {"Content-Type": "application/json"})
+        shard_id -= 1
+        # for replica_address in set(state.view[shard_id*state.repl_factor:(shard_id+1)*state.repl_factor])- set(state.address):
+        #     requests.delete(f'http://{replica_address}/kvs/{key}', timeout=2)
         # Delete from personal storage
         if key in state.storage:
             del state.storage[key]
             return json.dumps({"doesExist":True,"message":"Deleted successfully"}), 200
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in DELETE"}), 404
     else:
+        shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2, headers = {"Content-Type": "application/json"})
-        return response.json(), response.status_code
+            response = send_delete(address, key)
+            if response.status_code != 500:
+                return response.json(), response.status_code
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
 
+# Handles errors when server is down
+def send_delete(address, key):
+    try:
+        response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
+    except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
+        response = Http_Error(500)
+    finally:
+        return response
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state comms
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -167,6 +187,4 @@ def my_state():
     global state
     payload = {"store":state.storage, "vector_clock":state.vector_clock()}
     return json.dumps(payload), 200
-
-
 
