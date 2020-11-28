@@ -117,7 +117,6 @@ class State():
         self.add_nodes(set(view) - set(self.view))
         app.logger.info(f'\n\n\n\n{str(set(self.view) - set(view))}')
         self.delete_nodes(set(self.view) - set(view))
-        # self.indices = sorted(self.virtual_map.keys())
         self.update_view(view)
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
@@ -129,11 +128,9 @@ class State():
                 requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
                 del self.storage[key]
 
+    # Updates all instance variables according to an updated view
     def update_view(self, updated_view):
         self.view = sorted(list(updated_view))
-        # self.virtual_map = {}
-        # for address in self.view:
-        #     self.hash_and_store_address(address)
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
         self.shard_id = self.shard_map.get(self.address, 0)
@@ -157,7 +154,6 @@ class State():
         if len(deleting) > 0:
             for hash_key, address in list(self.virtual_map.items()):
                 if address in deleting:
-                    # app.logger.info(f'\n\n\nDeleting key')
                     del self.virtual_map[hash_key]
     
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -192,8 +188,3 @@ class State():
     @staticmethod
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    Key Value Store
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    # def forward_to_shard(self, reques)
