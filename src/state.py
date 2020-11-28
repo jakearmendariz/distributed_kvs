@@ -11,6 +11,7 @@ import random
 import threading
 import copy
 import constants
+import time
 
 class State():
     def __init__(self): 
@@ -31,6 +32,7 @@ class State():
         #REPLICA
         self.storage = {}
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
+        self.replicas = [address for address in self.local_view if address != self.address]
         self.vector_clock = {address:0 for address in self.local_view}
         # ask other nodes in shard for their values upon startup
         # self.start_up()
@@ -73,6 +75,15 @@ class State():
         elif vc2_flag and not vc1_flag: return constants.LESS_THAN
         elif vc1_flag and vc2_flag: return constants.CONCURRENT
         else: return constants.EQUAL
+
+    # every entry in storage needs to have a a dictionary defining what it is (needs method)
+    @staticmethod
+    def build_entry(value = None, method='PUT', vector_clock={}):
+        entry = {}
+        entry['value'] = value
+        entry['method'] = method
+        entry['vector_clock'] = vector_clock
+        entry['created_at'] = time.time()
     
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -170,6 +181,6 @@ class State():
         return sha1(key.encode('utf-8')).hexdigest()
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    Forwarding requests
+    Key Value Store
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     # def forward_to_shard(self, reques)

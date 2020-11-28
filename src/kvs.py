@@ -11,17 +11,19 @@ from state import State
 import logging
 import sys
 import _thread
-import copy
+import time
 
-class Http_Error():
-    def __init__(self, status_code, msg = "Error"):
-        self.status_code = status_code
-        self.msg = msg
 global state
 @app.before_first_request
 def build_state():
     global state
     state = State()
+
+
+class Http_Error():
+    def __init__(self, status_code, msg = "Error"):
+        self.status_code = status_code
+        self.msg = msg
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 view change
@@ -45,7 +47,7 @@ def view_change():
             app.logger.info("others" + address)
             response = requests.get(f'http://{address}/kvs/key-count') 
             shards.append({"address":address, "key-count":response.json()['key-count']})
-    return json.dumps({"message": "View change successful","states":shards}), 200
+    return json.dumps({"message": "View change successful","shards":shards}), 200
 
 @app.route('/kvs/node-change', methods=['PUT'])
 def node_change():
@@ -77,7 +79,7 @@ def get(key):
     if shard_id == state.shard_id:
         # TODO verify causual consistency from request context
         if key in state.storage:
-            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": state.storage[key]}), 200, 
+            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": state.storage[key]['value']}), 200, 
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET"}), 404
     else:
         # Attempt to send to every address in a shard, first one that doesn't tine 
@@ -108,25 +110,19 @@ def put(key):
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
-        # TODO determine logic for how to deal with causal consistency 
-        # Send a PUT request to store data for every replica
-        self_response = None
-        for address in set(state.local_view) - set(state.address):
-            # shard_id -= 1
-            # app.logger.info(f'state.shard_id:{state.shard_id} \nplace inside of view: {shard_id*state.repl_factor + i}')
-            # address = state.view[shard_id*state.repl_factor + i-1]
+        for address in state.replicas:
             response = send_put(address, key, request.get_json())
-            if address == state.address:
-                self_response = response
             status_code = response.status_code
-            if status_code != 200 and status_code != 201:
-                state.queue[address][key] = data['value']
-        return self_response.json(), self_response.status_code
+            if status_code == 500:
+                state.vector_clock[address] += 1
+            else:
+                state.queue[address][key] = State.build_entry(data['value'], 'PUT', state.vector_clock)
+        response = send_put(state.address, key, request.get_json())
+        return response.json(), response.status_code
     else:
         # try sending to every node inside of shard, first successful quit
-        shard_id -= 1
         for i in range(state.repl_factor):
-            address = state.view[shard_id*state.repl_factor + i]
+            address = state.view[(shard_id-1)*state.repl_factor + i]
             response = send_put(address, key, request.get_json(), shard = True)
             status_code = response.status_code
             if status_code == 200 or status_code == 201:
@@ -151,17 +147,16 @@ def delete(key):
     global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]    
-    app.logger.info(f'{state.shard_id} is deleting key:{key} from shard:{shard_id}')
     if shard_id == state.shard_id:
-        # Tell every other replica to delete
-        shard_id -= 1
-        # for replica_address in set(state.view[shard_id*state.repl_factor:(shard_id+1)*state.repl_factor])- set(state.address):
-        #     requests.delete(f'http://{replica_address}/kvs/{key}', timeout=2)
+        for adddress in state.replicas:
+            response = send_delete(address, key)
+            if response.status_code == 500:
+                state.queue[adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
+            else:
+                state.vector_clock[adddress] += 1
         # Delete from personal storage
-        if key in state.storage:
-            del state.storage[key]
-            return json.dumps({"doesExist":True,"message":"Deleted successfully"}), 200
-        return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in DELETE"}), 404
+        response = send_delete(address, key)
+        return response.json(), response.status_code
     else:
         shard_id -= 1
         for i in range(state.repl_factor):
