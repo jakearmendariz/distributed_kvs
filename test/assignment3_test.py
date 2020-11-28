@@ -1,17 +1,9 @@
-################### 
-# Course: CSE 138
-# Date: Fall 2020
-# Assignment: #3
-# Author: Aleck Zhang
-# Email: jzhan293@ucsc.edu
-###################
-
 import unittest
 import subprocess
 import requests # Note, you may need to install this package via pip (or pip3)
 import time 
 nodes = [
-	{},
+	{'addr'},
 	{
 		"addr": "10.10.0.4:13800",
 		"port": 13801,
@@ -27,6 +19,9 @@ nodes = [
 ]
 
 localhost = "localhost" # windows toolbox users will again want to make this the docker machine's ip adress
+
+def build_view(start = 0, end = 3):
+    return ','.join([node['addr'] for node in nodes[1:]][start:end])
 
 class Client():
 
@@ -194,7 +189,7 @@ class TestHW3(unittest.TestCase):
 
 	# (add, update, get, key-count, delete, key-count)'s
     def test_1(self):
-        keys = 50
+        keys = 30
         for i in range(keys):
             id1,id2 = 1,2
             if i%2 == 0:
@@ -227,9 +222,9 @@ class TestHW3(unittest.TestCase):
             self.assertEqual(total, 0)
             print(f'\ncompleted {key} round\n')
 
-# 	# add's, key-count, view-change, delete's, key-count
+# # 	# add's, key-count, view-change, delete's, key-count
     def test_2(self):
-        keys = 100
+        keys = 30
         # add's
         for i in range(keys):
             id = 1
@@ -243,12 +238,12 @@ class TestHW3(unittest.TestCase):
         self.assertEqual(total1, keys)
         # view-change
         print('VIEW CHANGE')
-        result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800,10.10.0.6:13800",nodes[1]["port"])
+        result = client.viewChange(build_view(0,3),nodes[1]["port"])
         key_counts2, total2 = self.check_view_change(result,3)
         self.assertEqual(total2, keys)
         print(key_counts1, "===>", key_counts2)
 
-        result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800",nodes[1]["port"])
+        result = client.viewChange(build_view(0,2),nodes[1]["port"])
         # result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800",nodes[1]["port"])
         key_counts3, total3 = self.check_view_change(result,2)
         # self.assertEqual(total2, keys)
@@ -273,7 +268,7 @@ class TestHW3(unittest.TestCase):
     
     # add's, key-count, view-change, delete's, key-count
     def test_3(self):
-        result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800",nodes[1]["port"])
+        result = client.viewChange(build_view(0,2),nodes[1]["port"])
         keys = 100
 
         # add's
@@ -288,23 +283,20 @@ class TestHW3(unittest.TestCase):
         self.assertEqual(total1, keys)
         # view-change
         print('VIEW CHANGE')
-        result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800,10.10.0.6:13800",nodes[1]["port"])
+        result = client.viewChange(build_view(0,3),nodes[1]["port"])
         key_counts2, total2 = self.check_view_change(result,3)
         self.assertEqual(total2, keys)
         print(key_counts1, "===>", key_counts2)
         # todo: check if shards are balanced
-        print('VIEW CHANGE')
-        result = client.viewChange("10.10.0.5:13800,10.10.0.6:13800",nodes[2]["port"])
-        key_counts3, total3 = self.check_view_change(result,2)
-        self.assertEqual(total3, keys)
-        print(key_counts2, "===>", key_counts3)
-
+        # print('VIEW CHANGE')
+        # result = client.viewChange(build_view(1,3),nodes[2]["port"])
+        # key_counts3, total3 = self.check_view_change(result,2)
+        # # self.assertEqual(total3, keys)
+        # print(key_counts2, "===>", key_counts3)
         # delete's
         for i in range(keys):
-            id = i%3
-            if id == 0:
-                id = 3
-
+            id = i%2
+            id += 2
             key = "test_3_%d"%i
             result = client.deleteKey(key, nodes[id]["port"])
             self.check_node_id(result,id,3)

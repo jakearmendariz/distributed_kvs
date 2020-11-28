@@ -84,6 +84,7 @@ class State():
         entry['method'] = method
         entry['vector_clock'] = vector_clock
         entry['created_at'] = time.time()
+        return entry
     
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -109,7 +110,6 @@ class State():
     
     def node_change(self, view):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
-        
         if set(view) == set(self.view):
             app.logger.info("No view change")
             return
@@ -127,7 +127,18 @@ class State():
             if self.address != address:
                 requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
                 del self.storage[key]
-        self.view = sorted(list(view))
+        self.update_view(view)
+
+    def update_view(self, updated_view):
+        self.view = sorted(list(updated_view))
+        self.virtual_map = {}
+        for address in self.view:
+            self.hash_and_store_address(address)
+        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_id = self.shard_map.get(self.address, 0)
+        self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
+        self.replicas = [address for address in self.local_view if address != self.address]
+    
 
     @staticmethod
     def send_node_change(address, view):

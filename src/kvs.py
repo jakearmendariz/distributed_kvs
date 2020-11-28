@@ -108,6 +108,7 @@ def put(key):
     if "value" not in data: return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
     if len(key) > 50 : return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
     address = state.maps_to(key)
+    app.logger.info(''.join(state.shard_map.keys()))
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
         for address in state.replicas:
