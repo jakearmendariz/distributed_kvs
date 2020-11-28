@@ -38,6 +38,7 @@ class State():
         # self.start_up()
         self.queue = {address:{} for address in self.local_view}
 
+        app.logger.info(f'\n\nnode:{self.address} is on shard {self.shard_id}\n\n')
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -115,7 +116,6 @@ class State():
             return
         app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
-        app.logger.info(f'\n\n\n\n{str(set(self.view) - set(view))}')
         self.delete_nodes(set(self.view) - set(view))
         self.update_view(view)
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")

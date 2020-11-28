@@ -121,12 +121,12 @@ def put(key):
         response = send_put(state.address, key, request.get_json())
         return response.json(), response.status_code
     else:
-        # try sending to every node inside of shard, first successful quit
+        # try sending to every node inside of expected shard, first successful quit
         for i in range(state.repl_factor):
             address = state.view[(shard_id-1)*state.repl_factor + i]
             response = send_put(address, key, request.get_json(), shard = True)
             status_code = response.status_code
-            if status_code == 200 or status_code == 201:
+            if status_code != 500:
                 return response.json(), status_code       
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
 
@@ -146,31 +146,44 @@ def send_put(address, key, request_json, shard = False):
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
     global state
+    app.logger.info("1")
     address = state.maps_to(key)
-    shard_id = state.shard_map[address]    
+    shard_id = state.shard_map[address]  
+    app.logger.info("2")  
     if shard_id == state.shard_id:
-        for adddress in state.replicas:
-            response = send_delete(address, key)
-            if response.status_code == 500:
-                state.queue[adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
+        app.logger.info(f'\n\nreplicas:{state.replicas}')
+        for replica_adddress in state.replicas:
+            if replica_adddress != state.address:
+                response = send_delete(replica_adddress, key)
+                if response.status_code == 500:
+                    app.logger.info("\n\n\n500 INTERNAL SERVER ERROR, ADDING TO QUEUE\n\n")
+                    state.queue[replica_adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
+                else:
+                    state.vector_clock[replica_adddress] += 1
             else:
-                state.vector_clock[adddress] += 1
+                app.logger.info("sending to self")
         # Delete from personal storage
-        response = send_delete(address, key)
+        response = send_delete(state.address, key)
+        if response.status_code == 500:
+            return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
         return response.json(), response.status_code
     else:
+        app.logger.info("3")
         shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = send_delete(address, key)
+            response = send_delete(address, key, shard = True)
             if response.status_code != 500:
                 return response.json(), response.status_code
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
 
 # Handles errors when server is down
-def send_delete(address, key):
+def send_delete(address, key, shard = False):
     try:
-        response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
+        if not shard:
+            response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
+        else:
+            response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2)
     except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
         response = Http_Error(500)
     finally:
