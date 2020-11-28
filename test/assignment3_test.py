@@ -269,8 +269,10 @@ class TestHW3(unittest.TestCase):
     # add's, key-count, view-change, delete's, key-count
     def test_3(self):
         result = client.viewChange(build_view(0,2),nodes[1]["port"])
+        # result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800",nodes[1]["port"])
         keys = 100
-
+        # time.sleep(2) # NOTE the code is currently failing bc this view change doesn't update the map and it maps to a node that shouldn't be there
+        # This bug only happens about half of the time
         # add's
         for i in range(keys):
             id = 1
@@ -283,16 +285,18 @@ class TestHW3(unittest.TestCase):
         self.assertEqual(total1, keys)
         # view-change
         print('VIEW CHANGE')
+        # time.sleep(2)
         result = client.viewChange(build_view(0,3),nodes[1]["port"])
+        # result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800,10.10.0.6:13800",nodes[1]["port"])
         key_counts2, total2 = self.check_view_change(result,3)
         self.assertEqual(total2, keys)
         print(key_counts1, "===>", key_counts2)
         # todo: check if shards are balanced
-        # print('VIEW CHANGE')
-        # result = client.viewChange(build_view(1,3),nodes[2]["port"])
-        # key_counts3, total3 = self.check_view_change(result,2)
-        # # self.assertEqual(total3, keys)
-        # print(key_counts2, "===>", key_counts3)
+        print('VIEW CHANGE')
+        result = client.viewChange(build_view(1,3),nodes[2]["port"])
+        key_counts3, total3 = self.check_view_change(result,2)
+        self.assertEqual(total3, keys)
+        print(key_counts2, "===>", key_counts3)
         # delete's
         for i in range(keys):
             id = i%2
@@ -308,4 +312,3 @@ class TestHW3(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
-    # result = client.viewChange("10.10.0.4:13800,10.10.0.5:13800",nodes[1]["port"])
