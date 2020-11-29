@@ -31,7 +31,7 @@ Return this very same dictionary above for the client to maintain as causal cont
 
 Return the very same dictionary above for the client to maintain as causal context.
 
-Forwarding:
+**Forwarding:**
 
 	Obviously, any time a request is stored in the local store, that request data must be forwarded to the other replicas in the shard.  If, when attempting to forward a write to the other replicas in the shard, it is discovered that another replica is down (unresponsive), that write will be buffered in a local "miss dictionary" in the following form:
 
@@ -64,7 +64,7 @@ If the key is not present in the local store, and the client request’s causal 
 
 However, if they are not one and the same key, return the following:
 
-{“error”: “Unable to satisfy request”, “message”: “Error in GET”}, 400
+{“error”: “Unable to satisfy request”, “message”: “Error in GET”}, 400  
 	
 	If the key is present in the local store and the client request’s causal context is not empty, compare VCcc to VCRK.  If VCcc > VCRK (client is in the future relative to requested key and shouldn’t be able to read the past) then return the following:
 
@@ -78,7 +78,8 @@ However, if they are not one and the same key, return the following:
 
 	*Sending the gossip:*
 	
-	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.  A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
+	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.    
+	A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
 
 Upon discovering that a replica previously thought to be down is now back up and has received the gossip update successfully, the address associated with that replica in the “miss dictionary” will be wiped clean (until it is discovered that replica has gone down again – at that point the miss list for that replica will begin to build again in the local “miss dictionary”).
 
