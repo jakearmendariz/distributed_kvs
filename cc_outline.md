@@ -39,7 +39,10 @@ Forwarding:
 
 	This “miss dictionary" will be of the overall following form:
 
-{{<address_of_down_replica_1>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}}, {missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {“missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp\_n>}}]}, {<address_of_down_replica_2>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}}, {missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}, …, {<address_of_down_replica_n>:”VCL”:<VCL>, “miss\_list”: [{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}}, {missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}}
+{{<address_of_down_replica_1>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},  
+{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …,{“missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp\_n>}}]}, {<address_of_down_replica_2>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},   
+{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}, …, {<address_of_down_replica_n>:”VCL”:<VCL>, “miss\_list”: [{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},   
+{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}}
 
 As you can see, this is a dictionary in which each member is a list of dictionaries.  Parent\_Dictionary(address\_of\_down\_replica\_dictionary(list(individual\_dictionaries\_for\_each\_miss)))
 
