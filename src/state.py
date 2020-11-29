@@ -49,7 +49,7 @@ class State():
             if(address != self.address):
                 try:
                     response = requests.get(f'http://{address}/kvs/update', timeout=5).json()
-                    version = self.compare_to(response['vector_clock'])
+                    version = State.compare_vector_clocks(self.vector_clock, response['vector_clock'])
                     if version == constants.LESS_THAN:
                         self.vector_clock = response['vector_clock']
                         self.storage = response['store']
@@ -81,7 +81,7 @@ class State():
     @staticmethod
     def vc_pairwise_max(vc1, vc2):
         pass
-    
+
     def compare_entries(self, entry1, entry2):
         result = State.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
         if result == constants.CONCURRENT or constants.EQUAL:
