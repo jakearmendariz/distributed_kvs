@@ -11,15 +11,17 @@ import random
 import threading
 import copy
 import constants
+import time
 
 class State():
     def __init__(self): 
-        # SHARD
         self.view = sorted(os.environ.get('VIEW').split(','))
         self.address = os.environ.get('ADDRESS')
-        repl_factor = os.environ["REPL_FACTOR"]
+        self.repl_factor = int(os.environ["REPL_FACTOR"])
+        
+        # SHARD
         # dictionary of all addresses in global view and their shard id's
-        self.shard_map = {address:(index//int(repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
         self.shard_id = self.shard_map[self.address]
         # The number of virtual nodes per node
         self.virtual_map = {}
@@ -29,11 +31,14 @@ class State():
 
         #REPLICA
         self.storage = {}
-        self.local_view = [address for address in self.shard_map if self.shard_map[address] == self.shard_id]
+        self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
+        self.replicas = [address for address in self.local_view if address != self.address]
         self.vector_clock = {address:0 for address in self.local_view}
         # ask other nodes in shard for their values upon startup
-        self.start_up()
+        # self.start_up()
+        self.queue = {address:{} for address in self.local_view}
 
+        app.logger.info(f'\n\nnode:{self.address} is on shard {self.shard_id}\n\n')
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -55,7 +60,7 @@ class State():
                         #TODO find the leader, solve for difference
                         pass
                 except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-                    app.info.info("server is down")
+                    app.logger.info("server is down")
     
     #compares self.vector_clock to incoming_vc
     def compare_to(self, incoming_vc):
@@ -64,27 +69,33 @@ class State():
         for x in self.vector_clock.keys():
             if self.vector_clock[x] < incoming_vc[x]:
                 vc2_flag = True
-            if self.vector_clock[x] > incoming_vc[x]:
+            elif self.vector_clock[x] > incoming_vc[x]:
                 vc1_flag = True
         
-        if vc1_flag and not vc2_flag:
-            return constants.GREATER_THAN
-        elif vc2_flag and not vc1_flag:
-            return constants.LESS_THAN
-        elif vc1_flag and vc2_flag:
-            return constants.CONCURRENT
-        else:
-            return constants.EQUAL
+        if vc1_flag and not vc2_flag: return constants.GREATER_THAN
+        elif vc2_flag and not vc1_flag: return constants.LESS_THAN
+        elif vc1_flag and vc2_flag: return constants.CONCURRENT
+        else: return constants.EQUAL
+
+    # every entry in storage needs to have a a dictionary defining what it is (needs method)
+    @staticmethod
+    def build_entry(value = None, method='PUT', vector_clock={}):
+        entry = {}
+        entry['value'] = value
+        entry['method'] = method
+        entry['vector_clock'] = vector_clock
+        entry['created_at'] = time.time()
+        return entry
     
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
-            State.send_node_change(address, view)
+            State.send_node_change(address, view, repl_factor)
 
         # Second send key-migration to all nodes.
         if not multi_threaded:
@@ -98,31 +109,39 @@ class State():
             for thread in threads:
                 thread.join()
     
-    def node_change(self, view):
+    def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
-        
         if set(view) == set(self.view):
             app.logger.info("No view change")
             return
         app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
-        self.indices = sorted(self.virtual_map.keys())
+        self.update_view(view, repl_factor)
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
     def key_migration(self, view):
         app.logger.info("Key migration starts")
-        self.indices = sorted(self.virtual_map.keys())
         for key in list(self.storage.keys()):
             address = self.maps_to(key)
             if self.address != address:
                 requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
                 del self.storage[key]
-        self.view = sorted(list(view))
+
+    # Updates all instance variables according to an updated view
+    def update_view(self, updated_view, repl_factor):
+        self.view = sorted(list(updated_view))
+        self.repl_factor = repl_factor
+        self.indices = sorted(self.virtual_map.keys())
+        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_id = self.shard_map.get(self.address, 0)
+        self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
+        self.replicas = [address for address in self.local_view if address != self.address]
+    
 
     @staticmethod
-    def send_node_change(address, view):
-        requests.put(f'http://{address}/kvs/node-change', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+    def send_node_change(address, view, repl_factor):
+        requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
 
     @staticmethod
     def send_key_migration(address, view):
@@ -134,8 +153,8 @@ class State():
     
     def delete_nodes(self, deleting):
         if len(deleting) > 0:
-            for hash_key in list(self.virtual_map.keys()):
-                if self.virtual_map[hash_key] in deleting:
+            for hash_key, address in list(self.virtual_map.items()):
+                if address in deleting:
                     del self.virtual_map[hash_key]
     
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -31,3 +31,14 @@ Establishing a total ordering:
     time.time() returns an integer value of ms since 1989. 
         a replica invokes this function it saves a key:value pair in memory
         
+Our goal is to create causual consistency. This means that if a client writes a value, it should be able to recieve this value OR get rejected service in the case of this value has not been created on the server yet
+
+EX of causal consistency
+If I write x =1, then y =2. Then I go to another server and ask what is x and carry with (last thing I did was set y =2 and server don't have X the server must say " cannot complete request"
+
+Well the first thing to do, is once a PUT or a DELETE is sent to a replica, it must tell every other node in its shard to update as well
+Then return the success or failure to client (success or failure 
+of node it was sent to, don't notify if replica is down)
+After sending the value, update vector clock
+
+A key can be further ahead in time than a its storage server. But it will always be behind the 
