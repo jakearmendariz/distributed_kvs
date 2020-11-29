@@ -63,19 +63,38 @@ class State():
                     app.logger.info("server is down")
     
     #compares self.vector_clock to incoming_vc
-    def compare_to(self, incoming_vc):
+    @staticmethod
+    def compare_vector_clocks(vc1, vc2):
         vc1_flag = vc2_flag = False
 
-        for x in self.vector_clock.keys():
-            if self.vector_clock[x] < incoming_vc[x]:
+        for x in vc1.keys():
+            if vc1[x] < vc2[x]:
                 vc2_flag = True
-            elif self.vector_clock[x] > incoming_vc[x]:
+            elif vc1[x] > vc2[x]:
                 vc1_flag = True
         
         if vc1_flag and not vc2_flag: return constants.GREATER_THAN
         elif vc2_flag and not vc1_flag: return constants.LESS_THAN
         elif vc1_flag and vc2_flag: return constants.CONCURRENT
         else: return constants.EQUAL
+    
+    @staticmethod
+    def vc_pairwise_max(vc1, vc2):
+        pass
+    
+    def compare_entries(self, entry1, entry2):
+        result = State.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
+        if result == constants.CONCURRENT or constants.EQUAL:
+            entry = entry1 if entry1['created_at'] > entry2['created_at'] else entry2
+            #TODO pairwise max
+            #entry['vector_clock'] = State.pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
+            return entry
+        elif result == constants.LESS_THAN:
+            # entry1 wins
+            return entry2
+        else:
+            return entry1
+
 
     # every entry in storage needs to have a a dictionary defining what it is (needs method)
     @staticmethod

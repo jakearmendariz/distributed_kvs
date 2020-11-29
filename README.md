@@ -46,11 +46,6 @@ A key can be further ahead in time than a its storage server. But it will always
 
 
 
-
-
-
-
-
 Mechanism description:
 
 First, let’s establish some shorthand:
