@@ -1,10 +1,11 @@
 # Assignment 4
 Team: Dorothy, Joshua, Jake, Julian
 
-# Goal
+# Design
+## Goal
 Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, your team’s key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
 
-# Mechanism description:
+## Vocabulary
 ### Server State
 Every server is represented by a combined state that includes:
 - view: list of addresses for every server
@@ -28,7 +29,8 @@ Every client can maintain a causual context that will display their most recent 
 ### Consistent Hashing
 To distribute values across shards we will use consistent hashing. Every node will have multiple virtual nodes represented by hash values, when a key hashes in the range of an address, it will be sent to that address's shard and be replicated in every node
 
-## GET
+## Types of Requests
+### GET
 NOTE: To see if a key exists in storage, a server must check inside dictionary and verify the entry.method == 'PUT'. If most recent entry is 'DELETE', then 404
 
 1. causal context is emtpy
@@ -41,7 +43,7 @@ NOTE: To see if a key exists in storage, a server must check inside dictionary a
     - server cannot handle request, it doesn't matter if we it does not know what happened in the future `{'error': 'Unable to satisfy request', 'message': 'Error in GET'}, 400`
 
 
-## PUT		
+### PUT		
 1. causal context is emtpy
     - store the entry, return it as causal context
 2. casual context is in the past of server
@@ -52,7 +54,7 @@ NOTE: To see if a key exists in storage, a server must check inside dictionary a
     - store clients request in the storage, with pairwise max of client's and servers vector_clocks
 
 
-## DELETE
+### DELETE
 1. causal context is emtpy
     - store the entry as a deletion, return it as causal context
 2. casual context is in the past of server
@@ -62,12 +64,19 @@ NOTE: To see if a key exists in storage, a server must check inside dictionary a
 4. casual context is in the future/concurrent and is talking about a different key.
     - store clients request in the storage as deletion, with pairwise max of client's and servers vector_clocks
 
+### View Change
+- TODO
 
-#### Forwarding
+### Shards
+- TODO
+
+## Node Communication
+
+### Forwarding
 Send the entry to every server in the local_view. If PUT/DELETE is unsuccessful (whether due to timeout, connection failure or message lost) save inside of the queue to be sent with gossip
 
 
-# Gossip:
+### Gossip:
 Nodes will 'gossip' between themselves to update each other on missed requests on the queue.
 
 ### Sending Gossip
