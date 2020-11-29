@@ -1,10 +1,10 @@
- establish some shorthand:
+ First, let's establish some shorthand:
  
-VCcc  = vector clock from request’s causal context.
-VCL   = vector clock local, or local vector clock (vector clock for the local replica itself)
-VCLK = vector clock in the local store that is attached to the same key as VCcc (the key from the client request’s causal context, or from the miss dictionary that is associated with a gossip update being received by a replica from another replica in the shard).
-VCWK = vector clock in the local store associated with the key that the client (or other replica if the request is a forwarded request) is trying to access.
-VCRK = vector clock in the local store associated with the key that the client is trying to read
+VCcc  = vector clock from request’s causal context.  
+VCL   = vector clock local, or local vector clock (vector clock for the local replica itself)  
+VCLK = vector clock in the local store that is attached to the same key as VCcc (the key from the client request’s causal context, or from the miss dictionary that is associated with a gossip update being received by a replica from another replica in the shard).  
+VCWK = vector clock in the local store associated with the key that the client (or other replica if the request is a forwarded request) is trying to access.  
+VCRK = vector clock in the local store associated with the key that the client is trying to read  
 
 For PUT requests:
 		
