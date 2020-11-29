@@ -32,8 +32,9 @@ view change
 def view_change():
     global state
     view_str = request.get_json()['view']
+    replica_factor = request.get_json().get('repl-factor', state.repl_factor)
     app.logger.info("Start broadcast view change: " + str(state.view))
-    state.broadcast_view(view_str)
+    state.broadcast_view(view_str, replica_factor)
     app.logger.info("Completed broadcast view change: " + str(state.view))
 
     shards = []
@@ -53,7 +54,7 @@ def view_change():
 def node_change():
     global state
     app.logger.info(request.get_json()['view'])
-    state.node_change(request.get_json()['view'].split(','))
+    state.node_change(request.get_json()['view'].split(','), int(request.get_json()['repl_factor']))
     return json.dumps({"message":"node change succeed"}), 201
 
 @app.route('/kvs/key-migration', methods=['PUT'])
@@ -146,29 +147,22 @@ def send_put(address, key, request_json, shard = False):
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
     global state
-    app.logger.info("1")
     address = state.maps_to(key)
     shard_id = state.shard_map[address]  
-    app.logger.info("2")  
     if shard_id == state.shard_id:
         app.logger.info(f'\n\nreplicas:{state.replicas}')
         for replica_adddress in state.replicas:
-            if replica_adddress != state.address:
-                response = send_delete(replica_adddress, key)
-                if response.status_code == 500:
-                    app.logger.info("\n\n\n500 INTERNAL SERVER ERROR, ADDING TO QUEUE\n\n")
-                    state.queue[replica_adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
-                else:
-                    state.vector_clock[replica_adddress] += 1
+            response = send_delete(replica_adddress, key)
+            if response.status_code == 500:
+                state.queue[replica_adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
             else:
-                app.logger.info("sending to self")
+                state.vector_clock[replica_adddress] += 1
         # Delete from personal storage
         response = send_delete(state.address, key)
         if response.status_code == 500:
             return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
         return response.json(), response.status_code
     else:
-        app.logger.info("3")
         shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
@@ -188,6 +182,7 @@ def send_delete(address, key, shard = False):
         response = Http_Error(500)
     finally:
         return response
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state comms
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

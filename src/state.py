@@ -91,11 +91,11 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
-            State.send_node_change(address, view)
+            State.send_node_change(address, view, repl_factor)
 
         # Second send key-migration to all nodes.
         if not multi_threaded:
@@ -109,7 +109,7 @@ class State():
             for thread in threads:
                 thread.join()
     
-    def node_change(self, view):
+    def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
         if set(view) == set(self.view):
             app.logger.info("No view change")
@@ -117,7 +117,7 @@ class State():
         app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
-        self.update_view(view)
+        self.update_view(view, repl_factor)
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
     def key_migration(self, view):
@@ -129,8 +129,9 @@ class State():
                 del self.storage[key]
 
     # Updates all instance variables according to an updated view
-    def update_view(self, updated_view):
+    def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
+        self.repl_factor = repl_factor
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
         self.shard_id = self.shard_map.get(self.address, 0)
@@ -139,8 +140,8 @@ class State():
     
 
     @staticmethod
-    def send_node_change(address, view):
-        requests.put(f'http://{address}/kvs/node-change', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+    def send_node_change(address, view, repl_factor):
+        requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
 
     @staticmethod
     def send_key_migration(address, view):

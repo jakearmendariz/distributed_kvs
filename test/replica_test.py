@@ -3,18 +3,18 @@ import subprocess
 import requests # Note, you may need to install this package via pip (or pip3)
 import time 
 nodes = [
-	{'addr'},
+	{'addr':''},
 	{
 		"addr": "10.10.0.2:13800",
 		"port": 13800,
 	},
 	{
-		"addr": "10.10.0.4:13800",
-		"port": 13802,
-	},
-	{
 		"addr": "10.10.0.3:13800",
 		"port": 13801,
+	},
+	{
+		"addr": "10.10.0.4:13800",
+		"port": 13802,
 	},
     {
 		"addr": "10.10.0.5:13800",
@@ -24,7 +24,7 @@ nodes = [
 
 localhost = "localhost" # windows toolbox users will again want to make this the docker machine's ip adress
 
-def build_view(start = 0, end = 3):
+def build_view(start = 0, end = 4):
     return ','.join([node['addr'] for node in nodes[1:]][start:end])
 
 class Client():
@@ -44,9 +44,9 @@ class Client():
 
 		return self.formatResult(result)
 
-	def viewChange(self, view, port):
+	def viewChange(self, view, port, repl_factor=1):
 		result = requests.put('http://%s:%s/kvs/view-change'%(localhost, str(port)),
-							  json={"view":str(view)},
+							  json={"view":str(view), 'repl_factor':repl_factor},
 							  headers = {"Content-Type": "application/json"})
 		print("PUT view-change result %s"%str(result.content))
 
@@ -131,100 +131,137 @@ getKeyCountResponse_Success = {
 						   "status_code":	200}
 
 class TestHW3(unittest.TestCase):
-    def check_node_id(self, result, node_id, num):
-        if "address" in result: # the receiving node does not store the key
-            node_id_ = 0
-            for i in range(1,num+1):
-                if nodes[i]["addr"] == result["address"]:
-                    node_id_ = i
-                    break
-            self.assertNotEqual(node_id_,0) # node_id must be found
-            self.assertNotEqual(node_id_,node_id) # node_id should not equal to the receiving node
+	def check_node_id(self, result, node_id, num):
+		if "address" in result: # the receiving node does not store the key
+			node_id_ = 0
+			for i in range(1,num+1):
+				if nodes[i]["addr"] == result["address"]:
+					node_id_ = i
+					break
+			self.assertNotEqual(node_id_,0) # node_id must be found
+			self.assertNotEqual(node_id_,node_id) # node_id should not equal to the receiving node
 
-            return node_id_
+			return node_id_
 
-        return node_id
+		return node_id
 
-    def assertEqual_helper(self,a,b):
-        a=a.copy()
-        a.pop("address", None)
-        self.assertEqual(a,b)
+	def assertEqual_helper(self,a,b):
+		a=a.copy()
+		a.pop("address", None)
+		self.assertEqual(a,b)
 
-    def check_key_count(self, result):
-        self.assertTrue("key-count" in result)
+	def check_key_count(self, result):
+		self.assertTrue("key-count" in result)
 
-        return int(result["key-count"])
+		return int(result["key-count"])
 
-    def check_view_change(self, result, num):
-        self.assertTrue("shards" in result)
-        shards = result["shards"]
-        self.assertEqual(len(shards),num)
+	def check_view_change(self, result, num):
+		self.assertTrue("shards" in result)
+		shards = result["shards"]
+		self.assertEqual(len(shards),num)
 
-        key_counts = [0] * num
-        total_keys = 0
-        node_id = 0
-        for i in range(num):
-            shard = shards[i]
-            self.assertTrue("address" in shard)
+		key_counts = [0] * num
+		total_keys = 0
+		node_id = 0
+		for i in range(num):
+			shard = shards[i]
+			self.assertTrue("address" in shard)
 
-            for j in range(1,4):
-                if nodes[j]["addr"] == shard["address"]:
-                    node_id += 1
-                    break
+			for j in range(1,4):
+				if nodes[j]["addr"] == shard["address"]:
+					node_id += 1
+					break
 
-            self.assertNotEqual(node_id,0)
-            key_count = self.check_key_count(shard)
-            key_counts[node_id-1] = key_count
-            total_keys += key_count
+			self.assertNotEqual(node_id,0)
+			key_count = self.check_key_count(shard)
+			key_counts[node_id-1] = key_count
+			total_keys += key_count
 
-        return key_counts, total_keys
+		return key_counts, total_keys
 
-    def get_key_counts(self, num):
-        key_counts = []
-        total_keys = 0
+	def get_key_counts(self, num):
+		key_counts = []
+		total_keys = 0
 
-        for i in range(1,num+1):
-            result = client.keyCount(nodes[i]["port"])
-            key_count = self.check_key_count(result)
-            key_counts.append(key_count)
-            total_keys += key_count
+		for i in range(1,num+1):
+			result = client.keyCount(nodes[i]["port"])
+			key_count = self.check_key_count(result)
+			key_counts.append(key_count)
+			total_keys += key_count
 
-        return key_counts, total_keys
+		return key_counts, total_keys
 
 	# (add, update, get, key-count, delete, key-count)'s
-    def test_1(self):
-        keys = 100
-        for i in range(keys):
-            id1,id2 = 1,2
-            if i%2 == 0:
-                id1,id2 = 2,1
+	def test_1(self):
+		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+		keys = 10
+		for i in range(keys):
+			id1,id2 = 1,2
+			if i%2 == 0:
+				id1,id2 = 2,1
 
-            key = "test_1_%d"%i
-            value = "a friendly string %d"%i
+			key = "test_1_%d"%i
+			value = "a friendly string %d"%i
 
-            # add
-            result = client.putKey(key,value,nodes[id1]["port"])
-            self.assertEqual_helper(result,addResponse_Success)
-            # update
-            result = client.putKey(key,value,nodes[id1+1]["port"])
-            self.assertEqual_helper(result,updateResponse_Success)
-            # get
-            result = client.getKey(key,nodes[id2+1]["port"])
-            expected = getResponse_Success.copy()
-            expected["value"] = value
-            self.check_node_id(result,id2,2)
-            self.assertEqual_helper(result,expected)
-            # key-count
-            key_counts, total = self.get_key_counts(2)
-            self.assertEqual(total, 1)
-            # delete
-            result = client.deleteKey(key, nodes[id2]["port"])
-            self.check_node_id(result,id2,2)
-            self.assertEqual_helper(result, delResponse_Success)
-            # key-count
-            key_counts, total = self.get_key_counts(2)
-            self.assertEqual(total, 0)
-            print(f'\ncompleted {key} round\n')
+			# add
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,addResponse_Success)
+			# update
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,updateResponse_Success)
+			# get
+			result = client.getKey(key,nodes[id2]["port"])
+			expected = getResponse_Success.copy()
+			expected["value"] = value
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result,expected)
+			# key-count
+			key_counts, total = self.get_key_counts(2)
+			self.assertEqual(total, 1)
+			# delete
+			result = client.deleteKey(key, nodes[id2]["port"])
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result, delResponse_Success)
+			# key-count
+			key_counts, total = self.get_key_counts(2)
+			self.assertEqual(total, 0)
+			print(f'\ncompleted {key} round\n')
+
+	# (two replicas, check to see if they update
+	# def test_4(self):
+	# 	result = client.viewChange(build_view(0,4),nodes[1]["port"],2)
+	# 	keys = 10
+	# 	for i in range(keys):
+	# 		id1,id2 = 1,2
+	# 		if i%2 == 0:
+	# 			id1,id2 = 2,1
+
+	# 		key = "test_1_%d"%i
+	# 		value = "a friendly string %d"%i
+
+	# 		# add
+	# 		result = client.putKey(key,value,nodes[id1]["port"])
+	# 		self.assertEqual_helper(result,addResponse_Success)
+	# 		# update
+	# 		result = client.putKey(key,value,nodes[id1+1]["port"])
+	# 		self.assertEqual_helper(result,updateResponse_Success)
+	# 		# get
+	# 		result = client.getKey(key,nodes[id2+1]["port"])
+	# 		expected = getResponse_Success.copy()
+	# 		expected["value"] = value
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result,expected)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(2)
+	# 		self.assertEqual(total, 1)
+	# 		# delete
+	# 		result = client.deleteKey(key, nodes[id2]["port"])
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result, delResponse_Success)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(4)
+	# 		self.assertEqual(total, 0)
+	# 		print(f'\ncompleted {key} round\n')
 
 # # # 	# add's, key-count, view-change, delete's, key-count
 #     def test_2(self):
