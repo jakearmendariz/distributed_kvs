@@ -6,7 +6,7 @@ VCLK = vector clock in the local store that is attached to the same key as VCcc 
 VCWK = vector clock in the local store associated with the key that the client (or other replica if the request is a forwarded request) is trying to access.  
 VCRK = vector clock in the local store associated with the key that the client is trying to read  
 
-For PUT requests:
+**For PUT requests:**
 		
 	If the key that the client is attempting to write to is not present in the local store and the client request’s causal context is empty, increment local position in VCL.  Create timestamp.  Store the key-value pair from the client request, VCL, and timestamp in the following form:
 
@@ -48,7 +48,7 @@ As you can see, this is a dictionary in which each member is a list of dictionar
 
 Also note that the “VCL” for each “address\_of\_down\_replica” is not to be inserted until the time that the “miss list” is actually sent (so as to insure that the receiving replica gets the most recent form of the VCL, of course).
 
-For GET requests:
+**For GET requests:**
 
 If the key is present in the local store, and the client request’s causal context is empty, increment the local position in the VCL.  Return the key-value pair that the client is requesting along with the VCRK and the timestamp associated with the requested key in the local store in the following form:
 
@@ -74,9 +74,9 @@ However, if they are not one and the same key, return the following:
 
 	{“key”:{“value”:<value>, “vs”:<VCcc>, “ts”:<timestamp>}}
 
-Gossip:
+**Gossip:**
 
-	Sending the gossip
+	*Sending the gossip:*
 	
 	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.  A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
 
@@ -84,7 +84,7 @@ Upon discovering that a replica previously thought to be down is now back up and
 
 This “gossip” will be sent to a different endpoint; not the endpoint associated with the standard “PUT” operations.
 
-Receiving the gossip:
+*Receiving the gossip:*
 
 	Upon receiving a gossip update from another replica in the shard, the local replica will iterate through the “miss queue” and for each key it examines, it will first set the VCL = pairwise_max(VCL, VCL_from_gossip).
   
