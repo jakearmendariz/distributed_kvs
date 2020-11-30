@@ -66,7 +66,7 @@ def key_migration():
 @app.route('/kvs/key-count', methods=['GET'])
 def count():
     global state
-    return json.dumps({"message":"Key count retrieved successfully","key-count":len(state.storage.keys())}), 200, 
+    return json.dumps({"message":"Key count retrieved successfully","key-count":len(state.storage.keys()), "shard-id": state.shard_id}), 200, 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 key value store
@@ -106,8 +106,11 @@ def send_get(address, key):
 def put(key):
     global state
     data = request.get_json()
-    if "value" not in data: return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
-    if len(key) > 50 : return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
+    if "value" not in data:
+        return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
+    if len(key) > 50:
+        return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
+
     address = state.maps_to(key)
     app.logger.info(''.join(state.shard_map.keys()))
     shard_id = state.shard_map[address]
