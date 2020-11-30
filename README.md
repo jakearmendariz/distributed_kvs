@@ -82,7 +82,7 @@ Nodes will 'gossip' between themselves to update each other on missed requests o
 ### Sending Gossip
 Every X miliseconds a background process will check the queue of every local_address, if non empty send all missed entries. If successful clear queue.
 
-## Receiving gossip:
+### Receiving gossip:
 Gossip is received in one request, but every entry must be examined individually to decide which entry to save/remove from storage.
 <br><br>
 Loop through every key and entry in the array.<br>
