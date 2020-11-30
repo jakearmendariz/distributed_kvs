@@ -43,11 +43,13 @@ def view_change():
         app.logger.info(address)
         if address == state.address:
             app.logger.info("self" + address)
-            shards.append({"address":state.address, "key-count":len(state.storage)})
+            shards.append({"shard-id": state.shard_id, "key-count":len(state.storage), "replicas": state.local_view})
         else:
             app.logger.info("others" + address)
-            response = requests.get(f'http://{address}/kvs/key-count') 
-            shards.append({"address":address, "key-count":response.json()['key-count']})
+            response = requests.get(f'http://{address}/kvs/key-count')
+            shard_id = response.json()["shard-id"]
+            replicas = [address for address in state.view if shard_id == state.shard_map[address]]
+            shards.append({"shard-id": shard_id, "key-count": response.json()['key-count'], "replicas": replicas})
     return json.dumps({"message": "View change successful","shards":shards}), 200
 
 @app.route('/kvs/node-change', methods=['PUT'])
