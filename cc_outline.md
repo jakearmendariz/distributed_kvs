@@ -37,7 +37,7 @@ Create VCK.  Increment local position in VCK to 1.  Store the key-value pair, th
 	
 *For case 3: (Key is present in store, client request causal context not empty):*
 
-<u>If client request causal context has an entry for the key being written to:</u>
+**_If client request causal context has an entry for the key being written to:_**
 
 Increment local position in VCK.
 VCK = pairwise_max(VCK, VCcc)
