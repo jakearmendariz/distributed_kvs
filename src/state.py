@@ -21,7 +21,7 @@ class State():
         
         # SHARD
         # dictionary of all addresses in global view and their shard id's
-        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_map = {address: (index // int(self.repl_factor) + 1) for index, address in enumerate(self.view)}
         self.shard_ids = [str(id) for id in set(self.shard_map.values())]
         self.shard_id = self.shard_map[self.address]
         # The number of virtual nodes per node

@@ -183,11 +183,23 @@ def send_delete(address, key, shard = False):
     finally:
         return response
 
-# Get id of shards
+# Get shard membership information.
 @app.route('/kvs/shards', methods=['GET'])
-def get_shard():
+def get_shard_membership():
     global state
     return json.dumps({"message": "Shard membership retrieved successfully", "shards": state.shard_ids}), 200
+
+# Get shard information given a shard id.
+@app.route('/kvs/shards/<id>', method=['GET'])
+def get_shard_information(id):
+    global state
+    replicas = []
+    for address, shard_id in enumerate(state.shard_map):
+        if shard_id == id:
+            replicas.append(address)
+    # TODO key count
+    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, "replicas": replicas}), 200
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state comms
