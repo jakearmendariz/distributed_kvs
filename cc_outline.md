@@ -1,109 +1,204 @@
- First, let's establish some shorthand:
- 
-VCcc  = vector clock from request’s causal context.  
-VCL   = vector clock local, or local vector clock (vector clock for the local replica itself)  
-VCLK = vector clock in the local store that is attached to the same key as VCcc (the key from the client request’s causal context, or from the miss dictionary that is associated with a gossip update being received by a replica from another replica in the shard).  
-VCWK = vector clock in the local store associated with the key that the client (or other replica if the request is a forwarded request) is trying to access.  
-VCRK = vector clock in the local store associated with the key that the client is trying to read  
 
-**For PUT requests:**
+First, let’s establish some shorthand:
+
+VCK = vector clock associated with key
+VCcc = vector clock from client request causal context
+
+For both PUT and GET, there are four parent cases…
+
+4 parent cases:
 		
-	If the key that the client is attempting to write to is not present in the local store and the client request’s causal context is empty, increment local position in VCL.  Create timestamp.  Store the key-value pair from the client request, VCL, and timestamp in the following form:
+1). Key is present in store, client request causal context empty
+		
+2). Key is not present in store, client request causal context empty
 
-{“key”:{“value”:<value>, “vc”:<VCL>, “ts”:<timestamp>}}
+3). Key is present in store, client request causal context not empty
 
-	Return this very same dictionary above for the client to maintain as causal context.
+4). Key is not present in store, client request causal context not empty
+ 
 
-	If the key that the client is attempting to write to is present in the local store, and the client request’s causal context is empty, increment local position in VCL.  Then VCWK = pairwise_max(VCL, VCWK).  Create timestamp.  Store the key-value pair from the client request, new VCWK, and timestamp in the store in the following form:
+For PUT requests:
+	
+For case 1 (Key is present in store, client request causal context empty):
 
-{“key”:{“value”:<value>, “vc”:<VCWK>, “ts”:<timestamp>}}
+Increment local position in VCK. Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
 
-	Return this very same dictionary above for the client to maintain as causal context.
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+	
+	Then return the following dictionary for the client to maintain as causal context:
+	
+		{“cm”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+	
+	For case 2 (Key is not present in store, client request causal context empty):
+ 
+Create VCK.  Increment local position in VCK to 1.  Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
 
-	If the key that the client is attempting to write to is not present in the local store and the client request’s causal context is not empty, increment local position in VCL.  Then VCWK = pairwise_max(VCL, VCcc).  Create timestamp.  Store key-value pair from client request, VCWK, and timestamp in the local store in the following form:
-{“key”:{“value”:<value>, “vc”:<VCWK>, “ts”:<timestamp>}}
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+	
+	For case 3: (Key is present in store, client request causal context not empty):
 
-Return this very same dictionary above for the client to maintain as causal context
+If client request causal context has an entry for the key being written to:
 
-	If the key that the client is attempting to write to is present in the store and the client request’s causal context is not empty, increment the local position in the VCL.  Then VCWK = pairwise_max(VCcc, VCWK).  Create timestamp.  Store the key-value pair from the client request, the timestamp, and new VCWK in the local store in the following form:
+Increment local position in VCK.
+VCK = pairwise_max(VCK, VCcc)
+Store the key-value pair, index of the local replica in the view list, and the VCK in the local store in the following form:
 
-{“key”:{“value”:<value>, “vc”:<VCWK>, “ts”:<timestamp>}}
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
 
-Return the very same dictionary above for the client to maintain as causal context.
+Return the following dictionary for the client to maintain as causal context:
 
-**Forwarding:**
+{“causal-context”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}, “key_1”:{“value”:<value_1>, “vc”:<VCK_1>, “node_id”:<index_id_1>}, … , “key_n”:{“value”:<value_n>, “vc”:<VCK_n>, “node_id”:<index_id_n>}}
+
+The idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
+
+If client request causal context does not have an entry for the key being written to:
+
+Increment local position in VCK.  
+Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
+
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+	
+Return the following dictionary for the client to maintain as causal context:
+
+{“causal-context”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}, “key_1”:{“value”:<value_1>, “vc”:<VCK_1>, “node_id”:<index_id_1>}, … , “key_n”:{“value”:<value_n>, “vc”:<VCK_n>, “node_id”:<index_id_n>}}
+
+Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
+
+	For case 4:
+
+		If client request causal context has an entry for the key being written to:
+			
+Extract VCcc from causal context.  
+Increment local position in VCcc.  
+Store key-value pair, the VCcc and the index of the local replica in the view list in the local store in the following form:
+
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+
+Return the following dictionary for the client to maintain as causal context:
+
+{“causal-context”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}, “key_1”:{“value”:<value_1>, “vc”:<VCK_1>, “node_id”:<index_id_1>}, … , “key_n”:{“value”:<value_n>, “vc”:<VCK_n>, “node_id”:<index_id_n>}}
+
+Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
+
+If client request causal context does not have an entry for the key being written to:
+
+Create VCK.  
+Increment local position in VCK to 1.  
+Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
+
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+	
+Return the following dictionary for the client to maintain as causal context:
+
+{“causal-context”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}, “key_1”:{“value”:<value_1>, “vc”:<VCK_1>, “node_id”:<index_id_1>}, … , “key_n”:{“value”:<value_n>, “vc”:<VCK_n>, “node_id”:<index_id_n>}}
+
+Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
+
+	
+Forwarding:
 
 	Obviously, any time a request is stored in the local store, that request data must be forwarded to the other replicas in the shard.  If, when attempting to forward a write to the other replicas in the shard, it is discovered that another replica is down (unresponsive), that write will be buffered in a local "miss dictionary" in the following form:
 
-{<address_of_down_replica>: [{“key”:{"value"<value>, "vc":<VCWK>, “ts":<timestamp>,}}]}
+{<address_of_down_replica>: [{“key”:{"value"<value>, "vc":<VCK>, “node_id":<index_id>,}}]}
 
 	This “miss dictionary" will be of the overall following form:
 
-{{<address_of_down_replica_1>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},  
-{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …,{“missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp\_n>}}]}, {<address_of_down_replica_2>:”VCL”:<VCL>, “miss\_list”:[{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},   
-{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}, …, {<address_of_down_replica_n>:”VCL”:<VCL>, “miss\_list”: [{"missed\_key\_1":{"value":<value>, "vc":<VCWK1>,”ts”:<timestamp1>}},   
-{missed\_key\_2":{"value":<value>, "vc":<VCWK2>, "ts”:<timestamp2>}}, …, {missed\_key\_n":{"value”:<value>, “vc”:<VCWKn>, “ts”:<timestamp_n>}}]}}
+{{<address_of_down_replica_1>: “miss_list”:[{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id_2>}}, …, {“missed_key_n":{"value”:<value>, “vc”:<VCKn>, “ts”:<index_id_n>}}]}, {<address_of_down_replica_2>: “miss_list”:[{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id2>}}, …, {missed_key_n":{"value”:<value>, “vc”:<VCKn>, “node_id”:<index_id_n>}}]}, …, {<address_of_down_replica_n>:”VCL”: “miss_list”: [{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id_2>}}, …, {missed_key_n":{"value”:<value>, “vc”:<VCKn>, “node_id”:<index_id_n>}}]}}
 
-As you can see, this is a dictionary in which each member is a list of dictionaries.  Parent\_Dictionary(address\_of\_down\_replica\_dictionary(list(individual\_dictionaries\_for\_each\_miss)))
+As you can see, this is a dictionary in which each member is a list of dictionaries.  Parent_Dictionary(address_of_down_replica_dictionary(list(individual_dictionaries_for_each_miss)))
 
-Also note that the “VCL” for each “address\_of\_down\_replica” is not to be inserted until the time that the “miss list” is actually sent (so as to insure that the receiving replica gets the most recent form of the VCL, of course).
 
-**For GET requests:**
 
-If the key is present in the local store, and the client request’s causal context is empty, increment the local position in the VCL.  Return the key-value pair that the client is requesting along with the VCRK and the timestamp associated with the requested key in the local store in the following form:
+For GET requests:
 
-{“key”:{“value”:<value>, “vc”:<VCRK>, “ts”:<timestamp>}}
+For case 1 (Key is present in store, client request causal context empty):
 
-If the key is not present in the local store and the client request’s causal context is empty, return the following: 
+		Increment local position in VCK.
 
-{“error”: “Unable to satisfy request”, “message”: “Error in GET”}, 400
+Simply return the requested data to the client in the following form:
 
-If the key is not present in the local store, and the client request’s causal context is not empty, check to see if the key that the client has in its causal context is the same as the key it is requesting access to.  If they are one and same key, simply return the client’s causal context back to it in the following form:
+		{
+           		"message"       : "Retrieved successfully",
+           		"doesExist"     : true,
+          		"value"         : "sampleValue",
+           		"address"       : "10.10.0.4:13800",
+"causal-context": {“key”:{“value”:<value>,                                                                    “vc”:<VCK>, “node_id”:<index_id>}}},
+       		}
+       		200
 
-{“key”:{“value”<value>, “vc”:<VCcc>, “ts”:<timestamp>}}
+	For case 2 (Key is not present in store, client request causal context empty):
 
-However, if they are not one and the same key, return the following:
+		NACK the client.  Return the following:
 
-{“error”: “Unable to satisfy request”, “message”: “Error in GET”}, 400  
+	{
+           "message"       : "Error in GET",
+           "error"         : "Key does not exist",
+           "doesExist"     : false,
+           "address"       : "10.10.0.4:13800",
+           "causal-context": {},
+         }
+       	 404
+
+
+	For case 3: (Key is present in store, client request causal context not empty):
+
+		If client request causal context has entry for key being read:
+
+Compare VCK to VCcc. 
+ 
+If VCcc > VCK: 
+Return the client’s own version of the key back to it.
+(along with all of its causal context)
+If VCcc <= VCK:
+	Increment local position in VCK.
+Return the client’s requested data. (along with all of its causal context)
+If VCcc || VCK:
+Split brain. We shouldn’t return the client’s data to it until the partition or whatever is causing the split brain is healed and the split brain is repaired by gossip.  Therefore, NACK the client.
+		
+If client request causal context does not have entry for key being read: 
+
+	Increment local position in VCK.
+Return the requested data to client (along with all of its causal context which should now also include the key being read).
 	
-	If the key is present in the local store and the client request’s causal context is not empty, compare VCcc to VCRK.  If VCcc > VCRK (client is in the future relative to requested key and shouldn’t be able to read the past) then return the following:
+For case 4: (Key is not present in store, client request causal context not empty):
 
-	{“error”: “Unable to satisfy request”, “message”: “Error in GET”}, 500
+If client causal context has entry for key being requested:
+Return key data from client’s own causal context back to it (along with all of its causal context)
+		
+		If client causal context does not have entry for key being requested:
 	
-	However, if VCcc <= VCRK (client is in the past relative to requested key, it’s fine to let them read the future) return the requested key-value pair, timestamp associated with the requested key in the local store, and the VCcc in the following form:
 
-	{“key”:{“value”:<value>, “vs”:<VCcc>, “ts”:<timestamp>}}
 
-**Gossip:**
+	NACK the client. 404.
+                
+Gossip:
 
-	*Sending the gossip:*
+	Sending the gossip
 	
-	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.    
-	A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
+	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.  A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
 
 Upon discovering that a replica previously thought to be down is now back up and has received the gossip update successfully, the address associated with that replica in the “miss dictionary” will be wiped clean (until it is discovered that replica has gone down again – at that point the miss list for that replica will begin to build again in the local “miss dictionary”).
 
 This “gossip” will be sent to a different endpoint; not the endpoint associated with the standard “PUT” operations.
 
-*Receiving the gossip:*
+Receiving the gossip:
 
-	Upon receiving a gossip update from another replica in the shard, the local replica will iterate through the “miss queue” and for each key it examines, it will first set the VCL = pairwise_max(VCL, VCL_from_gossip).
+	Upon receiving a gossip update from another replica in the shard, the local replica will iterate through the “miss queue" and examine each key and its data.
   
 	If the key is not present in the local store, it will simply store the miss in the local store in its received form, i.e.;
 
-	{“key”:{“value”:<value>,  “vc”:<VCcc>, “ts”:<timestamp>}}
+	{“key”:{“value”:<value>,  “vc”:<VCcc>, “node_id”:<index_id>}}
 
 where, in this case, VCcc is simply the vector clock associated with the particular key being examined.
 
-	If, however the key is present in its local store, it will compare VCLK to VCcc (again, VCcc in this case is simply the vector clock associated with the key from the current gossip update that is being examined).  
+	If, however the key is present in its local store, it will compare VCK to VCcc (again, VCcc in this case is simply the vector clock associated with the key from the current gossip update that is being examined).  
 
-If VCLK > VCcc, the key and its accompanying data remain unchanged in the local store.  
+If VCK > VCcc, the key and its accompanying data remain unchanged in the local store.  
 
-If VCLK < VCcc, the local replica will store the incoming key-value pair, timestamp, and VCcc in the local store in the following form:
+If VCK < VCcc, the local replica will store the incoming key-value pair, timestamp, and VCcc in the local store in the following form:
 
 {“key”:{“value”:<value>, “vc”:<VCcc>, “ts”<timestamp>}}
 
-If VCLK || VCcc (|| = “concurrent with”) then the value with the greater timestamp will be the value that is kept.  Also, VCLK = pairwise\_max(VCcc, VCLK).  Then the key-value pair with the greater timestamp, the new VCLK, and the greater timestamp itself will be stored in the local store in the following form:
+If VCK || VCcc (|| = “concurrent with”) then the value with the greater node_id will be the value that is kept.  Also, VCK = pairwise_max(VCcc, VCK).  Then the key-value pair with the greater node_id, the new VCK, and the greater node_id itself will be stored in the local store in the following form:
 
-{“key”:{“value”:<value>, “vc”:<VCLK>, “ts”:<timestamp>}}
-
+{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}}
