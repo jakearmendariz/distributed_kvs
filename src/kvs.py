@@ -183,6 +183,12 @@ def send_delete(address, key, shard = False):
     finally:
         return response
 
+# Get id of shards
+@app.route('/kvs/shards', methods=['GET'])
+def get_shard():
+    global state
+    return json.dumps({"message": "Shard membership retrieved successfully", "shards": state.shard_ids}), 200
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state comms
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
