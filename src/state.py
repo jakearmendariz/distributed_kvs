@@ -12,6 +12,7 @@ import threading
 import copy
 import constants
 import time
+import json
 
 class State():
     def __init__(self): 
@@ -112,7 +113,6 @@ class State():
         entry['created_at'] = time.time()
         return entry
     
-
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -148,18 +148,42 @@ class State():
     def key_migration(self, view):
         app.logger.info("Key migration starts")
         for key in list(self.storage.keys()):
-            address = self.maps_to(key)
-            if self.address != address:
-                requests.put(f'http://{address}/kvs/keys/{key}', json = {"value":self.storage[key]}, headers = {"Content-Type": "application/json"})
+            shard_id = self.shard_map[self.maps_to(key)]
+            if self.shard_id != shard_id:
+                self.put_to_shard(shard_id, key, self.storage[key])
                 del self.storage[key]
+        app.logger.info(f'view change operation complete. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
+        
+    # Sends a value to a shard, first successful request wins
+    def put_to_shard(self, shard_id, key, value):
+        for i in range(self.repl_factor):
+            address = self.view[(shard_id-1)*self.repl_factor + i]
+            response = State.send_put(address, key, value)
+            status_code = response.status_code
+            if status_code != 500:
+                return response.json(), status_code
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
 
+    # Accounts for 500 error on a PUT request
+    @staticmethod
+    def send_put(address, key, value):
+        response = None
+        try:
+            response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value}, timeout=2, headers = {"Content-Type": "application/json"})
+        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
+            response = Http_Error(500)
+        return response
+    
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
         self.repl_factor = repl_factor
+        app.logger.info(f'repl_factor:{repl_factor}')
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        app.logger.info(f'shard_map:{self.shard_map}')
         self.shard_id = self.shard_map.get(self.address, 0)
+        app.logger.info(f'shard_id:{self.shard_id}')
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
     
@@ -214,3 +238,8 @@ class State():
     @staticmethod
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
+
+class Http_Error():
+    def __init__(self, status_code, msg = "Error"):
+        self.status_code = status_code
+        self.msg = msg
