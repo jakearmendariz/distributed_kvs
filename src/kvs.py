@@ -194,11 +194,13 @@ def get_shard_membership():
 def get_shard_information(id):
     global state
     replicas = []
+    key_count = 0
     for address, shard_id in state.shard_map.items():
         if str(shard_id) == id:
             replicas.append(address)
-    # TODO key count
-    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, "replicas": replicas}), 200
+            response = requests.get(f'http://{address}/kvs/key-count')
+            key_count = response.json()['key-count']
+    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, "key-count": key_count, "replicas": replicas}), 200
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
