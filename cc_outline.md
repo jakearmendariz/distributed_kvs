@@ -51,7 +51,7 @@ Return the following dictionary for the client to maintain as causal context:
 
 The idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
-*If client request causal context does not have an entry for the key being written to:*
+**_If client request causal context does not have an entry for the key being written to:_**
 
 Increment local position in VCK.  
 Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
@@ -66,7 +66,7 @@ Again, the idea here is that we are not getting rid of any of the client’s cau
 
 *For case 4:(Key is not present in store, client request causal context not empty)*
 
-<u>If client request causal context has an entry for the key being written to:</u>
+**_If client request causal context has an entry for the key being written to:_**
 			
 Extract VCcc from causal context.  
 Increment local position in VCcc.  
@@ -80,7 +80,7 @@ Return the following dictionary for the client to maintain as causal context:
 
 Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
-<u>If client request causal context does not have an entry for the key being written to:</u>
+**_If client request causal context does not have an entry for the key being written to:_**
 
 Create VCK.  
 Increment local position in VCK to 1.  
@@ -147,29 +147,29 @@ NACK the client.  Return the following:
 
 Compare VCK to VCcc. 
  
-If VCcc > VCK: 
+**_If VCcc > VCK:_** 
 Return the client’s own version of the key back to it.
 (along with all of its causal context)
 
-If VCcc <= VCK:
+_**If VCcc <= VCK:_**
 	Increment local position in VCK.
 Return the client’s requested data. (along with all of its causal context)
 
-If VCcc || VCK:
+**_If VCcc || VCK:_**
 	Split brain. We shouldn’t return the client’s data to it until the partition or whatever is causing the split brain is healed and the split brain is repaired by gossip.  	  Therefore, NACK the client.
 		
-<u>If client request causal context does not have entry for key being read:</u> 
+**_If client request causal context does not have entry for key being read:_** 
 
 Increment local position in VCK.
 Return the requested data to client (along with all of its causal context which should now also include the key being read).
 	
 *For case 4: (Key is not present in store, client request causal context not empty):*
 
-<u>If client causal context has entry for key being requested:</u>
+**_If client causal context has entry for key being requested:_**
 
 Return key data from client’s own causal context back to it (along with all of its causal context)
 		
-<u>If client causal context does not have entry for key being requested:</u>
+**_If client causal context does not have entry for key being requested:_**
 	
 NACK the client. 404.
                 
@@ -195,15 +195,15 @@ where, in this case, VCcc is simply the vector clock associated with the particu
 
 If, however the key is present in its local store, it will compare VCK to VCcc (again, VCcc in this case is simply the vector clock associated with the key from the current gossip update that is being examined).  
 
-If VCK > VCcc, 
+**_If VCK > VCcc,_** 
 	the key and its accompanying data remain unchanged in the local store.  
 
-If VCK < VCcc, 
+**_If VCK < VCcc,_** 
 	the local replica will store the incoming key-value pair, timestamp, and VCcc in the local store in the following form:
 
 	{“key”:{“value”:<value>, “vc”:<VCcc>, “ts”<timestamp>}}
 
-If VCK || VCcc (|| = “concurrent with”), 
+**_If VCK || VCcc (|| = “concurrent with”),_** 
 	then the value with the greater node_id will be the value that is kept.  Also, VCK = pairwise_max(VCcc, VCK).  Then the key-value pair with the greater node_id, the new 	 VCK, and the greater node_id itself will be stored in the local store in the following form:
 
 	{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}}
