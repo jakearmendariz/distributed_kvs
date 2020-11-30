@@ -17,27 +17,27 @@ For both PUT and GET, there are four parent cases…
 4). Key is not present in store, client request causal context not empty
  
 
-For PUT requests:
+**For PUT requests:**
 	
-For case 1 (Key is present in store, client request causal context empty):
+*For case 1 (Key is present in store, client request causal context empty):*
 
 Increment local position in VCK. Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
 
 {“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
 	
-	Then return the following dictionary for the client to maintain as causal context:
+Then return the following dictionary for the client to maintain as causal context:
 	
-		{“cm”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
+{“cm”:{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
 	
-	For case 2 (Key is not present in store, client request causal context empty):
+*For case 2 (Key is not present in store, client request causal context empty):*
  
 Create VCK.  Increment local position in VCK to 1.  Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
 
 {“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index>}}
 	
-	For case 3: (Key is present in store, client request causal context not empty):
+*For case 3: (Key is present in store, client request causal context not empty):*
 
-If client request causal context has an entry for the key being written to:
+<u>If client request causal context has an entry for the key being written to:</u>
 
 Increment local position in VCK.
 VCK = pairwise_max(VCK, VCcc)
@@ -51,7 +51,7 @@ Return the following dictionary for the client to maintain as causal context:
 
 The idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
-If client request causal context does not have an entry for the key being written to:
+*If client request causal context does not have an entry for the key being written to:*
 
 Increment local position in VCK.  
 Store the key-value pair, the VCK and the index of the local replica in the view list in the local store in the following form:
@@ -64,9 +64,9 @@ Return the following dictionary for the client to maintain as causal context:
 
 Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
-	For case 4:
+*For case 4:(Key is not present in store, client request causal context not empty)*
 
-		If client request causal context has an entry for the key being written to:
+<u>If client request causal context has an entry for the key being written to:</u>
 			
 Extract VCcc from causal context.  
 Increment local position in VCcc.  
@@ -80,7 +80,7 @@ Return the following dictionary for the client to maintain as causal context:
 
 Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
-If client request causal context does not have an entry for the key being written to:
+<u>If client request causal context does not have an entry for the key being written to:</u>
 
 Create VCK.  
 Increment local position in VCK to 1.  
@@ -97,11 +97,11 @@ Again, the idea here is that we are not getting rid of any of the client’s cau
 	
 Forwarding:
 
-	Obviously, any time a request is stored in the local store, that request data must be forwarded to the other replicas in the shard.  If, when attempting to forward a write to the other replicas in the shard, it is discovered that another replica is down (unresponsive), that write will be buffered in a local "miss dictionary" in the following form:
+Obviously, any time a request is stored in the local store, that request data must be forwarded to the other replicas in the shard.  If, when attempting to forward a write to the other replicas in the shard, it is discovered that another replica is down (unresponsive), that write will be buffered in a local "miss dictionary" in the following form:
 
 {<address_of_down_replica>: [{“key”:{"value"<value>, "vc":<VCK>, “node_id":<index_id>,}}]}
 
-	This “miss dictionary" will be of the overall following form:
+This “miss dictionary" will be of the overall following form:
 
 {{<address_of_down_replica_1>: “miss_list”:[{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id_2>}}, …, {“missed_key_n":{"value”:<value>, “vc”:<VCKn>, “ts”:<index_id_n>}}]}, {<address_of_down_replica_2>: “miss_list”:[{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id2>}}, …, {missed_key_n":{"value”:<value>, “vc”:<VCKn>, “node_id”:<index_id_n>}}]}, …, {<address_of_down_replica_n>:”VCL”: “miss_list”: [{"missed_key_1":{"value":<value>, "vc":<VCK1>,”node_id”:<index_id_1>}}, {missed_key_2":{"value":<value>, "vc":<VCK2>, "node_id”:<index_id_2>}}, …, {missed_key_n":{"value”:<value>, “vc”:<VCKn>, “node_id”:<index_id_n>}}]}}
 
@@ -109,9 +109,9 @@ As you can see, this is a dictionary in which each member is a list of dictionar
 
 
 
-For GET requests:
+**For GET requests:**
 
-For case 1 (Key is present in store, client request causal context empty):
+*For case 1 (Key is present in store, client request causal context empty):*
 
 		Increment local position in VCK.
 
@@ -122,13 +122,14 @@ Simply return the requested data to the client in the following form:
            		"doesExist"     : true,
           		"value"         : "sampleValue",
            		"address"       : "10.10.0.4:13800",
-"causal-context": {“key”:{“value”:<value>,                                                                    “vc”:<VCK>, “node_id”:<index_id>}}},
+                        "causal-context": {“key”:{“value”:<value>,                                                                    
+			“vc”:<VCK>, “node_id”:<index_id>}}},
        		}
        		200
 
-	For case 2 (Key is not present in store, client request causal context empty):
+*For case 2 (Key is not present in store, client request causal context empty):*
 
-		NACK the client.  Return the following:
+NACK the client.  Return the following:
 
 	{
            "message"       : "Error in GET",
@@ -140,65 +141,69 @@ Simply return the requested data to the client in the following form:
        	 404
 
 
-	For case 3: (Key is present in store, client request causal context not empty):
+*For case 3: (Key is present in store, client request causal context not empty):*
 
-		If client request causal context has entry for key being read:
+<u>If client request causal context has entry for key being read:</u>
 
 Compare VCK to VCcc. 
  
 If VCcc > VCK: 
 Return the client’s own version of the key back to it.
 (along with all of its causal context)
+
 If VCcc <= VCK:
 	Increment local position in VCK.
 Return the client’s requested data. (along with all of its causal context)
-If VCcc || VCK:
-Split brain. We shouldn’t return the client’s data to it until the partition or whatever is causing the split brain is healed and the split brain is repaired by gossip.  Therefore, NACK the client.
-		
-If client request causal context does not have entry for key being read: 
 
-	Increment local position in VCK.
+If VCcc || VCK:
+	Split brain. We shouldn’t return the client’s data to it until the partition or whatever is causing the split brain is healed and the split brain is repaired by gossip.  	  Therefore, NACK the client.
+		
+<u>If client request causal context does not have entry for key being read:</u> 
+
+Increment local position in VCK.
 Return the requested data to client (along with all of its causal context which should now also include the key being read).
 	
-For case 4: (Key is not present in store, client request causal context not empty):
+*For case 4: (Key is not present in store, client request causal context not empty):*
 
-If client causal context has entry for key being requested:
+<u>If client causal context has entry for key being requested:</u>
+
 Return key data from client’s own causal context back to it (along with all of its causal context)
 		
-		If client causal context does not have entry for key being requested:
+<u>If client causal context does not have entry for key being requested:</u>
 	
-
-
-	NACK the client. 404.
+NACK the client. 404.
                 
-Gossip:
+**Gossip:**
 
-	Sending the gossip
+*Sending the gossip*
 	
-	Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.  A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
+Each replica will iteratively go through their “miss dictionary” and send the respective “miss list” to the appropriate address.  A function that performs this action will run every “x” milliseconds or half second, or whatever time interval seems most appropriate.  
 
 Upon discovering that a replica previously thought to be down is now back up and has received the gossip update successfully, the address associated with that replica in the “miss dictionary” will be wiped clean (until it is discovered that replica has gone down again – at that point the miss list for that replica will begin to build again in the local “miss dictionary”).
 
 This “gossip” will be sent to a different endpoint; not the endpoint associated with the standard “PUT” operations.
 
-Receiving the gossip:
+*Receiving the gossip:*
 
-	Upon receiving a gossip update from another replica in the shard, the local replica will iterate through the “miss queue" and examine each key and its data.
+Upon receiving a gossip update from another replica in the shard, the local replica will iterate through the “miss queue" and examine each key and its data.
   
-	If the key is not present in the local store, it will simply store the miss in the local store in its received form, i.e.;
+If the key is not present in the local store, it will simply store the miss in the local store in its received form, i.e.;
 
 	{“key”:{“value”:<value>,  “vc”:<VCcc>, “node_id”:<index_id>}}
 
 where, in this case, VCcc is simply the vector clock associated with the particular key being examined.
 
-	If, however the key is present in its local store, it will compare VCK to VCcc (again, VCcc in this case is simply the vector clock associated with the key from the current gossip update that is being examined).  
+If, however the key is present in its local store, it will compare VCK to VCcc (again, VCcc in this case is simply the vector clock associated with the key from the current gossip update that is being examined).  
 
-If VCK > VCcc, the key and its accompanying data remain unchanged in the local store.  
+If VCK > VCcc, 
+	the key and its accompanying data remain unchanged in the local store.  
 
-If VCK < VCcc, the local replica will store the incoming key-value pair, timestamp, and VCcc in the local store in the following form:
+If VCK < VCcc, 
+	the local replica will store the incoming key-value pair, timestamp, and VCcc in the local store in the following form:
 
-{“key”:{“value”:<value>, “vc”:<VCcc>, “ts”<timestamp>}}
+	{“key”:{“value”:<value>, “vc”:<VCcc>, “ts”<timestamp>}}
 
-If VCK || VCcc (|| = “concurrent with”) then the value with the greater node_id will be the value that is kept.  Also, VCK = pairwise_max(VCcc, VCK).  Then the key-value pair with the greater node_id, the new VCK, and the greater node_id itself will be stored in the local store in the following form:
+If VCK || VCcc (|| = “concurrent with”), 
+	then the value with the greater node_id will be the value that is kept.  Also, VCK = pairwise_max(VCcc, VCK).  Then the key-value pair with the greater node_id, the new 	 VCK, and the greater node_id itself will be stored in the local store in the following form:
 
-{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}}
+	{“key”:{“value”:<value>, “vc”:<VCK>, “node_id”:<index_id>}}
