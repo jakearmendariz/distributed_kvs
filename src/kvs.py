@@ -43,11 +43,13 @@ def view_change():
         app.logger.info(address)
         if address == state.address:
             app.logger.info("self" + address)
-            shards.append({"address":state.address, "key-count":len(state.storage)})
+            shards.append({"shard-id": state.shard_id, "key-count":len(state.storage), "replicas": state.local_view})
         else:
             app.logger.info("others" + address)
-            response = requests.get(f'http://{address}/kvs/key-count') 
-            shards.append({"address":address, "key-count":response.json()['key-count']})
+            response = requests.get(f'http://{address}/kvs/key-count')
+            shard_id = response.json()["shard-id"]
+            replicas = [address for address in state.view if shard_id == state.shard_map[address]]
+            shards.append({"shard-id": shard_id, "key-count": response.json()['key-count'], "replicas": replicas})
     return json.dumps({"message": "View change successful","shards":shards}), 200
 
 @app.route('/kvs/node-change', methods=['PUT'])
@@ -66,7 +68,7 @@ def key_migration():
 @app.route('/kvs/key-count', methods=['GET'])
 def count():
     global state
-    return json.dumps({"message":"Key count retrieved successfully","key-count":len(state.storage.keys())}), 200, 
+    return json.dumps({"message":"Key count retrieved successfully","key-count":len(state.storage.keys()), "shard-id": state.shard_id}), 200, 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 key value store
@@ -106,8 +108,11 @@ def send_get(address, key):
 def put(key):
     global state
     data = request.get_json()
-    if "value" not in data: return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
-    if len(key) > 50 : return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
+    if "value" not in data:
+        return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
+    if len(key) > 50:
+        return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
+
     address = state.maps_to(key)
     app.logger.info(''.join(state.shard_map.keys()))
     shard_id = state.shard_map[address]
@@ -182,6 +187,26 @@ def send_delete(address, key, shard = False):
         response = Http_Error(500)
     finally:
         return response
+
+# Get shard membership information.
+@app.route('/kvs/shards', methods=['GET'])
+def get_shard_membership():
+    global state
+    return json.dumps({"message": "Shard membership retrieved successfully", "shards": state.shard_ids}), 200
+
+# Get shard information given a shard id.
+@app.route('/kvs/shards/<id>', methods=['GET'])
+def get_shard_information(id):
+    global state
+    replicas = []
+    key_count = 0
+    for address, shard_id in state.shard_map.items():
+        if str(shard_id) == id:
+            replicas.append(address)
+            response = requests.get(f'http://{address}/kvs/key-count')
+            key_count = response.json()['key-count']
+    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, "key-count": key_count, "replicas": replicas}), 200
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state comms

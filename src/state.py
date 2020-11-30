@@ -21,7 +21,8 @@ class State():
         
         # SHARD
         # dictionary of all addresses in global view and their shard id's
-        self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_map = {address: (index // int(self.repl_factor) + 1) for index, address in enumerate(self.view)}
+        self.shard_ids = [str(id) for id in set(self.shard_map.values())]
         self.shard_id = self.shard_map[self.address]
         # The number of virtual nodes per node
         self.virtual_map = {}
@@ -46,21 +47,22 @@ class State():
         # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
         # by keeping a running max of the VC's that you encounter as you go
         for address in self.view:
-            if(address != self.address):
-                try:
-                    response = requests.get(f'http://{address}/kvs/update', timeout=5).json()
-                    version = State.compare_vector_clocks(self.vector_clock, response['vector_clock'])
-                    if version == constants.LESS_THAN:
-                        self.vector_clock = response['vector_clock']
-                        self.storage = response['store']
-                    elif version == constants.GREATER_THAN:
-                        # TODO send the values
-                        pass
-                    elif version == constants.CONCURRENT:
-                        #TODO find the leader, solve for difference
-                        pass
-                except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-                    app.logger.info("server is down")
+            if address == self.address:
+                continue
+            try:
+                response = requests.get(f'http://{address}/kvs/update', timeout = 5).json()
+                version = State.compare_vector_clocks(self.vector_clock, response['vector_clock'])
+                if version == constants.LESS_THAN:
+                    self.vector_clock = response['vector_clock']
+                    self.storage = response['store']
+                elif version == constants.GREATER_THAN:
+                    # TODO send the values
+                    pass
+                elif version == constants.CONCURRENT:
+                    #TODO find the leader, solve for difference
+                    pass
+            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
+                app.logger.info("server is down")
     
     #compares self.vector_clock to incoming_vc
     @staticmethod
@@ -73,10 +75,14 @@ class State():
             elif vc1[x] > vc2[x]:
                 vc1_flag = True
         
-        if vc1_flag and not vc2_flag: return constants.GREATER_THAN
-        elif vc2_flag and not vc1_flag: return constants.LESS_THAN
-        elif vc1_flag and vc2_flag: return constants.CONCURRENT
-        else: return constants.EQUAL
+        if vc1_flag and not vc2_flag:
+            return constants.GREATER_THAN
+        elif vc2_flag and not vc1_flag:
+            return constants.LESS_THAN
+        elif vc1_flag and vc2_flag:
+            return constants.CONCURRENT
+        else:
+            return constants.EQUAL
     
     @staticmethod
     def vc_pairwise_max(vc1, vc2):
@@ -84,7 +90,7 @@ class State():
 
     def compare_entries(self, entry1, entry2):
         result = State.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
-        if result == constants.CONCURRENT or constants.EQUAL:
+        if result == constants.CONCURRENT or result == constants.EQUAL:
             entry = entry1 if entry1['created_at'] > entry2['created_at'] else entry2
             #TODO pairwise max
             #entry['vector_clock'] = State.pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
