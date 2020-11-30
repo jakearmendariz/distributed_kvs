@@ -95,7 +95,7 @@ Return the following dictionary for the client to maintain as causal context:
 Again, the idea here is that we are not getting rid of any of the client’s causal context.  Whatever the client gave the local replica as causal context we are giving back PLUS the updated version of the key that the client just wrote to.
 
 	
-Forwarding:
+**Forwarding:**
 
 Obviously, any time a request is stored in the local store, that request data must be forwarded to the other replicas in the shard.  If, when attempting to forward a write to the other replicas in the shard, it is discovered that another replica is down (unresponsive), that write will be buffered in a local "miss dictionary" in the following form:
 
