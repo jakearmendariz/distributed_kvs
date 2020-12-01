@@ -85,7 +85,7 @@ def count():
 # Returns an array of string ids
 @app.route('/kvs/shards', methods=['GET'])
 def get_shard_membership():
-    return json.dumps({"message": "Shard membership retrieved successfully", "shards": [str(i) for i in range(1, kvs.state.repl_factor+1)]}), 200
+    return json.dumps({"message": "Shard membership retrieved successfully", "shards": kvs.state.shard_ids}), 200
 
 # Get shard information given a shard id.
 @app.route('/kvs/shards/<id>', methods=['GET'])

@@ -125,12 +125,9 @@ class State():
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
         self.repl_factor = repl_factor
-        app.logger.info(f'repl_factor:{repl_factor}')
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
-        app.logger.info(f'shard_map:{self.shard_map}')
         self.shard_id = self.shard_map.get(self.address, 0)
-        app.logger.info(f'shard_id:{self.shard_id}')
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
 
