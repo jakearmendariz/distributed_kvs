@@ -13,6 +13,7 @@ import copy
 import constants
 import time
 import json
+from static import Request, Http_Error, Entry
 
 class State():
     def __init__(self): 
@@ -39,79 +40,29 @@ class State():
         # ask other nodes in shard for their values upon startup
         # self.start_up()
         self.queue = {address:{} for address in self.local_view}
-
-        app.logger.info(f'\n\nnode:{self.address} is on shard {self.shard_id}\n\n')
+    
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     vector clock functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def start_up(self):
         # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
         # by keeping a running max of the VC's that you encounter as you go
-        for address in self.view:
-            if address == self.address:
-                continue
-            try:
-                response = requests.get(f'http://{address}/kvs/update', timeout = 5).json()
-                version = State.compare_vector_clocks(self.vector_clock, response['vector_clock'])
+        for address in self.replicas:
+                update = Request.send_get_update(address)
+                if update.status_code == 500:
+                    app.logger.info("server is down")
+                    continue
+                update = update.json()
+                version = Entry.compare_vector_clocks(self.vector_clock, update['vector_clock'])
                 if version == constants.LESS_THAN:
-                    self.vector_clock = response['vector_clock']
-                    self.storage = response['store']
+                    self.vector_clock = update['vector_clock']
+                    self.storage = update['store']
                 elif version == constants.GREATER_THAN:
                     # TODO send the values
                     pass
                 elif version == constants.CONCURRENT:
                     #TODO find the leader, solve for difference
                     pass
-            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-                app.logger.info("server is down")
-    
-    #compares self.vector_clock to incoming_vc
-    @staticmethod
-    def compare_vector_clocks(vc1, vc2):
-        vc1_flag = vc2_flag = False
-
-        for x in vc1.keys():
-            if vc1[x] < vc2[x]:
-                vc2_flag = True
-            elif vc1[x] > vc2[x]:
-                vc1_flag = True
-        
-        if vc1_flag and not vc2_flag:
-            return constants.GREATER_THAN
-        elif vc2_flag and not vc1_flag:
-            return constants.LESS_THAN
-        elif vc1_flag and vc2_flag:
-            return constants.CONCURRENT
-        else:
-            return constants.EQUAL
-    
-    @staticmethod
-    def vc_pairwise_max(vc1, vc2):
-        pass
-
-    def compare_entries(self, entry1, entry2):
-        result = State.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
-        if result == constants.CONCURRENT or result == constants.EQUAL:
-            entry = entry1 if entry1['created_at'] > entry2['created_at'] else entry2
-            #TODO pairwise max
-            #entry['vector_clock'] = State.pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
-            return entry
-        elif result == constants.LESS_THAN:
-            # entry1 wins
-            return entry2
-        else:
-            return entry1
-
-
-    # every entry in storage needs to have a a dictionary defining what it is (needs method)
-    @staticmethod
-    def build_entry(value = None, method='PUT', vector_clock={}):
-        entry = {}
-        entry['value'] = value
-        entry['method'] = method
-        entry['vector_clock'] = vector_clock
-        entry['created_at'] = time.time()
-        return entry
     
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
@@ -120,16 +71,16 @@ class State():
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
-            State.send_node_change(address, view, repl_factor)
+            Request.send_node_change(address, view, repl_factor)
 
         # Second send key-migration to all nodes.
         if not multi_threaded:
             for address in addresses:
-                State.send_key_migration(address, view)
+                Request.send_key_migration(address, view)
         else:
             threads = []
             for address in addresses:
-                threads.append(threading.Thread(target=State.send_key_migration, args=(address, view)))
+                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
                 threads[-1].start()
             for thread in threads:
                 thread.join()
@@ -148,31 +99,27 @@ class State():
     def key_migration(self, view):
         app.logger.info("Key migration starts")
         for key in list(self.storage.keys()):
-            shard_id = self.shard_map[self.maps_to(key)]
+            address = self.maps_to(key)
+            shard_id = self.shard_map[address]
             if self.shard_id != shard_id:
                 self.put_to_shard(shard_id, key, self.storage[key])
                 del self.storage[key]
+            elif self.address == address: # if key maps to our address, we have to nodify replicas so that they can have this value
+                for address in self.replicas:
+                    response = Request.send_put(address, key, self.storage[key])
+                    if response.status_code == 500:
+                        self.queue['address']['key'] = self.storage[key]
         app.logger.info(f'view change operation complete. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
         
     # Sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value):
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
-            response = State.send_put(address, key, value)
+            response = Request.send_put(address, key, value)
             status_code = response.status_code
             if status_code != 500:
                 return response.json(), status_code
-        return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
-
-    # Accounts for 500 error on a PUT request
-    @staticmethod
-    def send_put(address, key, value):
-        response = None
-        try:
-            response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value}, timeout=2, headers = {"Content-Type": "application/json"})
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        return response
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
     
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):
@@ -186,15 +133,6 @@ class State():
         app.logger.info(f'shard_id:{self.shard_id}')
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
-    
-
-    @staticmethod
-    def send_node_change(address, view, repl_factor):
-        requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
-
-    @staticmethod
-    def send_key_migration(address, view):
-        requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
 
     def add_nodes(self, adding):
         for address in adding:
@@ -239,7 +177,3 @@ class State():
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
 
-class Http_Error():
-    def __init__(self, status_code, msg = "Error"):
-        self.status_code = status_code
-        self.msg = msg

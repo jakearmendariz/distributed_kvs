@@ -12,6 +12,7 @@ import logging
 import sys
 import _thread
 import time
+from static import Request, Http_Error, Entry
 
 global state
 @app.before_first_request
@@ -20,57 +21,10 @@ def build_state():
     state = State()
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-view change
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-@app.route('/kvs/view-change', methods=['PUT'])
-def view_change():
-    global state
-    view_str = request.get_json()['view']
-    replica_factor = request.get_json().get('repl_factor', state.repl_factor)
-    app.logger.info("Start broadcast view change: " + str(state.view))
-    state.broadcast_view(view_str, replica_factor)
-    app.logger.info("Completed broadcast view change: " + str(state.view))
-
-    shards = []
-    app.logger.info("started kvs key count") 
-    for address in state.view:
-        app.logger.info(address)
-        if address == state.address:
-            app.logger.info("self" + address)
-            shards.append({"shard-id": state.shard_id, "key-count":len(state.storage), "replicas": state.local_view})
-        else:
-            app.logger.info("others" + address)
-            response = requests.get(f'http://{address}/kvs/key-count')
-            shard_id = response.json()["shard-id"]
-            replicas = [address for address in state.view if shard_id == state.shard_map[address]]
-            shards.append({"shard-id": shard_id, "key-count": response.json()['key-count'], "replicas": replicas})
-    return json.dumps({"message": "View change successful","shards":shards}), 200
-
-@app.route('/kvs/node-change', methods=['PUT'])
-def node_change():
-    global state
-    app.logger.info(request.get_json()['view'])
-    state.node_change(request.get_json()['view'].split(','), int(request.get_json()['repl_factor']))
-    return json.dumps({"message":"node change succeed"}), 201
-
-@app.route('/kvs/key-migration', methods=['PUT'])
-def key_migration():
-    global state
-    state.key_migration(request.get_json()['view'].split(','))
-    return json.dumps({"message":"key migration succeed"}), 201
-
-@app.route('/kvs/key-count', methods=['GET'])
-def count():
-    global state
-    return json.dumps({"message":"Key count retrieved successfully","key-count":len(state.storage.keys()), "shard-id": state.shard_id}), 200, 
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 key value store
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
 @app.route('/kvs/keys/<key>', methods=['GET'])
 def get(key):
-    global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
@@ -83,24 +37,15 @@ def get(key):
         shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = send_get(address, key)
+            response = Request.send_get(address, key)
             if response.status_code != 500:
                 return response.json(), response.status_code
         app.logger.error(f'No requests were successfully forwarded to shard.{shard_id}')
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address": address}), 404
 
-# Handles errors when server is down
-def send_get(address, key):
-    try:
-        response = requests.get(f'http://{address}/kvs/{key}', timeout=2)
-    except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-        response = Http_Error(500)
-    finally:
-        return response
 
 @app.route('/kvs/keys/<key>', methods=['PUT'])
 def put(key):
-    global state
     data = request.get_json()
     if 'value' not in data:
         app.logger.info(f'request json data:{data}')
@@ -113,42 +58,31 @@ def put(key):
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
         for address in state.replicas:
-            response = send_put_endpoint(address, key, request.get_json())
+            response = Request.send_put_endpoint(address, key, request.get_json())
             status_code = response.status_code
             if status_code == 500:
                 state.vector_clock[address] += 1
             else:
-                state.queue[address][key] = State.build_entry(data['value'], 'PUT', state.vector_clock)
-        response = send_put_endpoint(state.address, key, request.get_json())
+                state.queue[address][key] = Entry.build_entry(data['value'], 'PUT', state.vector_clock)
+        response = Request.send_put_endpoint(state.address, key, request.get_json())
         return response.json(), response.status_code
     else:
         # try sending to every node inside of expected shard, first successful quit
         return state.put_to_shard(shard_id, key, data['value'])
 
-# Handles errors, helps when forwarding to dead nodes
-# By default this will send to a non forwarding endpoint (a replica)
-def send_put_endpoint(address, key, request_json):
-    response = None
-    try:
-        response = requests.put(f'http://{address}/kvs/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
-    except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-        response = Http_Error(500)
-    return response
-
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
-    global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]  
     if shard_id == state.shard_id:
         for replica_adddress in state.replicas:
-            response = send_delete(replica_adddress, key)
+            response = Request.send_delete_endpoint(replica_adddress, key)
             if response.status_code == 500:
-                state.queue[replica_adddress][key] = State.build_entry(method='DELETE', vector_clock=state.vector_clock)
+                state.queue[replica_adddress][key] = Entry.build_entry(method='DELETE', vector_clock=state.vector_clock)
             else:
                 state.vector_clock[replica_adddress] += 1
         # Delete from personal storage
-        response = send_delete(state.address, key)
+        response = Request.send_delete_endpoint(state.address, key)
         if response.status_code == 500:
             return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
         return response.json(), response.status_code
@@ -156,49 +90,8 @@ def delete(key):
         shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = send_delete(address, key, shard = True)
+            response = Request.send_delete(address, key)
             if response.status_code != 500:
                 return response.json(), response.status_code
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
-
-# Handles errors when server is down
-def send_delete(address, key, shard = False):
-    try:
-        if not shard:
-            response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
-        else:
-            response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2)
-    except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-        response = Http_Error(500)
-    finally:
-        return response
-
-# Get shard membership information.
-@app.route('/kvs/shards', methods=['GET'])
-def get_shard_membership():
-    global state
-    return json.dumps({"message": "Shard membership retrieved successfully", "shards": state.shard_ids}), 200
-
-# Get shard information given a shard id.
-@app.route('/kvs/shards/<id>', methods=['GET'])
-def get_shard_information(id):
-    global state
-    replicas = []
-    key_count = 0
-    for address, shard_id in state.shard_map.items():
-        if str(shard_id) == id:
-            replicas.append(address)
-            response = requests.get(f'http://{address}/kvs/key-count')
-            key_count = response.json()['key-count']
-    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, "key-count": key_count, "replicas": replicas}), 200
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-state comms
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-@app.route('/kvs/update', methods=["GET"])
-def my_state():
-    global state
-    payload = {"store":state.storage, "vector_clock":state.vector_clock()}
-    return json.dumps(payload), 200
 
