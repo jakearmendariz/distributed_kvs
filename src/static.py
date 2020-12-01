@@ -72,65 +72,59 @@ Contains a series of functions to make requests allowing for errors of the serve
 class Request():
     @staticmethod
     def send_get(address, key):
-        try:
-            response = requests.get(f'http://{address}/kvs/{key}', timeout=2)
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        finally:
-            return response
+        response = None
+        try: response = requests.get(f'http://{address}/kvs/{key}', timeout=2)
+        except: response = Http_Error(500)
+        finally: return response
     
     @staticmethod
     def send_put(address, key, value):
         response = None
-        try:
-            response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value}, timeout=2, headers = {"Content-Type": "application/json"})
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        return response
+        try: response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value}, timeout=2, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
     
     @staticmethod
     def send_delete(address, key):
-        try:
-            response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2)
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        finally:
-            return response
+        response = None
+        try: response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2)
+        except: response = Http_Error(500)
+        finally: return response
 
     @staticmethod
     def send_delete_endpoint(address, key):
-        try:
-            response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        finally:
-            return response
+        response = None
+        try: response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
+        except: response = Http_Error(500)
+        finally: return response
     
     @staticmethod
     def send_put_endpoint(address, key, request_json):
         response = None
-        try:
-            response = requests.put(f'http://{address}/kvs/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        return response
+        try: response = requests.put(f'http://{address}/kvs/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
     
     @staticmethod
     def send_get_update(address):
-        try:
-            response = requests.get(f'http://{address}/kvs/update', timeout=3)
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout ) as _:
-            response = Http_Error(500)
-        finally:
-            return response
+        response = None
+        try: response = requests.get(f'http://{address}/kvs/update', timeout=3)
+        except: response = Http_Error(500)
+        finally: return response
 
     @staticmethod
     def send_node_change(address, view, repl_factor):
-        requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
+        response = None
+        try: requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
 
     @staticmethod
     def send_key_migration(address, view):
-        requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+        response = None
+        try: requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Http_Error
