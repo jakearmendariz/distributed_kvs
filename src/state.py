@@ -127,6 +127,7 @@ class State():
         self.repl_factor = repl_factor
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        self.shard_ids = [str(id) for id in set(self.shard_map.values())]
         self.shard_id = self.shard_map.get(self.address, 0)
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
