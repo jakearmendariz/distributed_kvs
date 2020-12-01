@@ -65,10 +65,16 @@ NOTE: To see if a key exists in storage, a server must check inside dictionary a
     - store clients request in the storage as deletion, with pairwise max of client's and servers vector_clocks
 
 ### View Change
-- TODO
+- The view change implementation remains mostly the same in a replicated system as the previously scalable and sharded system in assignment3. The key difference is values are sent (and deleted) iff the shard_id changed, their address owner no longer matters. By the same logic, when a shard adds new addresses, the addresses within a shard must share all of their values with the other nodes that are now responsible for new kvs.
+<br><br>
+View change is completed in 3 steps<br>
+
+1. node change: tell all other nodes of the update view, they should calculate their new shard_id and find their fellow replicas.
+2. key migration: send away all kvs that no longer belong inside a server's shard
+3. key-count: count the keys on each server, verify all keys are accounted for and replicated on alive servers
 
 ### Shards
-- TODO
+If there are n nodes, and a replication factor of r, then there are n/r shards in our distributed system. Each shard will consist of its own data and own map of virtual nodes describing which server (shard) owns each range of keys. Within each shard the data is replicated in every alive node.
 
 ## Node Communication
 
