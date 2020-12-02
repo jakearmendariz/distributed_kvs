@@ -48,7 +48,7 @@ Setting values
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/<key>', methods=['GET'])
 def getter(key):
-    if key in kvs.state.storage:
+    if kvs.state.storage_contains(key):
         return json.dumps({"doesExist": True, "message": "Retrieved successfully", "value": kvs.state.storage[key]['value']}), 200, 
     return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in GET"}), 404
     
@@ -56,7 +56,8 @@ def getter(key):
 @app.route('/kvs/<key>', methods=['PUT'])
 def putter(key):
     data = request.get_json()
-    replace = key in kvs.state.storage
+    replace = kvs.state.storage_contains(key)
+    if not replace: kvs.state.key_count += 1
     message = "Updated successfully" if replace else "Added successfully"
     status_code = 200 if replace else 201
     kvs.state.storage[key] = Entry.build_entry(data['value'], 'PUT', kvs.state.vector_clock)
@@ -66,11 +67,14 @@ def putter(key):
 
 @app.route('/kvs/<key>', methods=['DELETE'])
 def deleter(key):
-    if key in kvs.state.storage:
-        kvs.state.vector_clock[kvs.state.address] += 1
-        del kvs.state.storage[key]
+    kvs.state.vector_clock[kvs.state.address] += 1
+    if kvs.state.storage_contains(key):
+        kvs.state.key_count -= 1
+        kvs.state.storage[key] = Entry.build_entry('', 'DELETE', kvs.state.vector_clock)
         return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
-    return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE"}), 404
+    else:
+        kvs.state.storage[key] = Entry.build_entry('', 'DELETE', kvs.state.vector_clock)
+        return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE"}), 404
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -79,7 +83,7 @@ Information endpoints
 
 @app.route('/kvs/key-count', methods=['GET'])
 def count():
-    return json.dumps({"message":"Key count retrieved successfully","key-count":len(kvs.state.storage.keys()), 
+    return json.dumps({"message":"Key count retrieved successfully","key-count":kvs.state.key_count, 
         "shard-id": kvs.state.shard_id}), 200, 
 
 # Returns an array of string ids
@@ -107,3 +111,9 @@ send all of storage
 def my_state():
     payload = {"store":kvs.state.storage, "vector_clock":kvs.state.vector_clock()}
     return json.dumps(payload), 200
+
+@app.route('/kvs/clear-storage', methods=["PUT"])
+def clear_storage():
+    kvs.state.storage = {}
+    kvs.state.key_count = 0
+    return json.dumps({'message':'storage cleared successfully'}), 200

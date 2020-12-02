@@ -34,6 +34,7 @@ class State():
 
         #REPLICA
         self.storage = {}
+        self.key_count = 0
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
         self.vector_clock = {address:0 for address in self.local_view}
@@ -41,16 +42,13 @@ class State():
         # self.start_up()
         self.queue = {address:{} for address in self.local_view}
     
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    vector clock functions
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def start_up(self):
         # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
         # by keeping a running max of the VC's that you encounter as you go
         for address in self.replicas:
                 update = Request.send_get_update(address)
                 if update.status_code == 500:
-                    app.logger.info("server is down")
+                    app.logger.info(f'{address} is down')
                     continue
                 update = update.json()
                 version = Entry.compare_vector_clocks(self.vector_clock, update['vector_clock'])
@@ -63,6 +61,9 @@ class State():
                 elif version == constants.CONCURRENT:
                     #TODO find the leader, solve for difference
                     pass
+    
+    def storage_contains(self, key):
+        return key in self.storage and self.storage[key]['method'] != 'DELETE'
     
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
@@ -102,11 +103,17 @@ class State():
             address = self.maps_to(key)
             shard_id = self.shard_map[address]
             if self.shard_id != shard_id:
-                self.put_to_shard(shard_id, key, self.storage[key])
+                if self.storage[key]['method'] != 'DELETE':
+                    self.put_to_shard(shard_id, key, self.storage[key])
+                    self.key_count -= 1
                 del self.storage[key]
             elif self.address == address: # if key maps to our address, we have to nodify replicas so that they can have this value
                 for address in self.replicas:
-                    response = Request.send_put(address, key, self.storage[key])
+                    response = None
+                    if self.storage[key]['method'] != 'DELETE':
+                        response = Request.send_put(address, key, self.storage[key])
+                    else:
+                        response = Request.send_delete(address, key)
                     if response.status_code == 500:
                         self.queue['address']['key'] = self.storage[key]
         app.logger.info(f'view change operation complete. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')

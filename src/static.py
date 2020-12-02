@@ -24,7 +24,7 @@ class Entry():
         entry['value'] = value
         entry['method'] = method
         entry['vector_clock'] = vector_clock
-        entry['created_at'] = time.time()
+        entry['created_at'] = int(time.time())
         return entry
 
     @staticmethod
