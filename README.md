@@ -1,6 +1,16 @@
 # Assignment 4
 Team: Dorothy, Joshua, Jake, Julian
 
+
+# TODO
+1. Gossip
+2. Health checks
+3. causal context
+    - send causual context to client
+    - limit size of queue, save as constant value, play with number
+    - send vector clocks on every node with it
+4. ALL OF PROTOCOL
+
 # Design
 ## Goal
 Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, your team’s key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
@@ -41,6 +51,22 @@ NOTE: To see if a key exists in storage, a server must check inside dictionary a
     - compare server's entry to the causal context, return the greater of the two entries
 4. casual context is in the future/concurrent and is talking about a different key.
     - server cannot handle request, it doesn't matter if we it does not know what happened in the future `{'error': 'Unable to satisfy request', 'message': 'Error in GET'}, 400`
+## Note Casual context should maintain most recent vector clock of each server it interacts with. THUS we can know if a server is in the future and out of causal context ==> 400 error
+Vector clocks are better because then we can see that self has an outdated view of the server the client was interacting with ==> possible causal consistency leak
+
+causal context from client
+A 1, 1, 0
+B 2, 2, 0
+
+I am talking to B, and I ask for a key. Because B is ahead then we can return our value
+
+A 3, 1, 0
+B 2, 2, 0
+Return 400
+
+Causal context = {A:vc history {'key'entry1, 'key2':'entry2}} 
+PUT, DELETE, I will udpate the clients VC
+history is limited
 
 
 ### PUT		

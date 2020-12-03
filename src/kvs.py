@@ -1,7 +1,7 @@
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 kvs.py
 
-kvs.py accepts inputs on /kvs/<key> to store, retrieve and delete values
+kvs.py accepts inputs on /kvs/keys/<key> endpoints to save, forward and distribute
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 from app import app
 from flask import request
@@ -41,7 +41,8 @@ def get(key):
             if response.status_code != 500:
                 return response.json(), response.status_code
         app.logger.error(f'No requests were successfully forwarded to shard.{shard_id}')
-        return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address": address}), 404
+        #unreachable due to TA guarentee
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in GET"}), 503
 
 
 @app.route('/kvs/keys/<key>', methods=['PUT'])
@@ -54,13 +55,12 @@ def put(key):
         return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
 
     address = state.maps_to(key)
-    app.logger.info(''.join(state.shard_map.keys()))
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
         for address in state.replicas:
             response = Request.send_put_endpoint(address, key, request.get_json())
             status_code = response.status_code
-            if status_code == 500:
+            if status_code != 500:
                 state.vector_clock[address] += 1
             else:
                 state.queue[address][key] = Entry.build_entry(data['value'], 'PUT', state.vector_clock)

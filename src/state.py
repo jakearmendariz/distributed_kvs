@@ -37,11 +37,16 @@ class State():
         self.key_count = 0
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
+        # create a deep copy of replicas. LOOK INTO DEEP COPY VS COPY
+        # self.up_nodes = self.replicas.copy()
         self.vector_clock = {address:0 for address in self.local_view}
         # ask other nodes in shard for their values upon startup
         # self.start_up()
         self.queue = {address:{} for address in self.local_view}
-    
+
+    def new_vector_clock(self):
+        return {address:0 for address in self.local_view}
+        
     def start_up(self):
         # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
         # by keeping a running max of the VC's that you encounter as you go
@@ -123,10 +128,10 @@ class State():
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
             response = Request.send_put(address, key, value)
-            status_code = response.status_code
-            if status_code != 500:
-                return response.json(), status_code
-        return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
+            if response.status_code != 500:
+                return response.json(), response.status_code
+        # unreachable by TA guarentee at least one node will be available in every shard
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
     
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):

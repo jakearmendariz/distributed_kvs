@@ -58,6 +58,7 @@ def putter(key):
     data = request.get_json()
     replace = kvs.state.storage_contains(key)
     if not replace: kvs.state.key_count += 1
+    if replace: kvs.state.storage[key]['vector_clock'][kvs.state.address] += 1
     message = "Updated successfully" if replace else "Added successfully"
     status_code = 200 if replace else 201
     kvs.state.storage[key] = Entry.build_entry(data['value'], 'PUT', kvs.state.vector_clock)
@@ -70,10 +71,11 @@ def deleter(key):
     kvs.state.vector_clock[kvs.state.address] += 1
     if kvs.state.storage_contains(key):
         kvs.state.key_count -= 1
-        kvs.state.storage[key] = Entry.build_entry('', 'DELETE', kvs.state.vector_clock)
+        kvs.state.storage[key]['method'] = 'DELETE'
+        kvs.state.storage[key]['vector_clock'][kvs.state.address] += 1
         return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
     else:
-        kvs.state.storage[key] = Entry.build_entry('', 'DELETE', kvs.state.vector_clock)
+        kvs.state.storage[key] = Entry.build_entry('', 'DELETE', kvs.state.new_vector_clock())
         return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE"}), 404
 
 

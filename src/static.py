@@ -26,7 +26,7 @@ class Entry():
         entry['vector_clock'] = vector_clock
         entry['created_at'] = int(time.time())
         return entry
-
+    
     @staticmethod
     def compare_vector_clocks(vc1, vc2):
         vc1_flag = vc2_flag = False
@@ -115,14 +115,14 @@ class Request():
     @staticmethod
     def send_node_change(address, view, repl_factor):
         response = None
-        try: requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 
     @staticmethod
     def send_key_migration(address, view):
         response = None
-        try: requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 
