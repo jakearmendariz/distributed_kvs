@@ -19,10 +19,11 @@ Every operation writing to the kvs will be saved as an entrys
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class Entry():
     @staticmethod
-    def build_entry(value = None, method='PUT', vector_clock={}):
+    def build_entry(value = None, method='PUT', address = '', vector_clock={}):
         entry = {}
         entry['value'] = value
         entry['method'] = method
+        entry['address'] = address
         entry['vector_clock'] = vector_clock
         entry['created_at'] = int(time.time())
         return entry
@@ -48,20 +49,30 @@ class Entry():
     
     @staticmethod
     def vc_pairwise_max(vc1, vc2):
-        pass
+        vc = {}
+        for address in vc1.keys():
+            vc[address] = max(vc1[address], vc2[address])
+        return vc
 
     @staticmethod
-    def compare_entries(entry1, entry2):
+    def max_of_entries(entry1, entry2):
         result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
         if result == constants.CONCURRENT or result == constants.EQUAL:
-            entry = entry1 if entry1['created_at'] > entry2['created_at'] else entry2
-            #TODO pairwise max
-            #entry['vector_clock'] = State.pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
+            entry = None
+            if entry1['created_at'] > entry2['created_at']:
+                entry = entry1
+            elif entry1['created_at'] < entry2['created_at']:
+                entry = entry2
+            else:
+                entry =  entry1 if entry1['address'] > entry2['address'] else entry2
+            entry['vector_clock'] = Entry.vc_pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
+            entry['created_at'] = int(time.time())
             return entry
         elif result == constants.LESS_THAN:
-            # entry1 wins
+            entry2['created_at'] = int(time.time())
             return entry2
-        else:
+        else: # greater than
+            entry1['created_at'] = int(time.time())
             return entry1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -92,16 +103,16 @@ class Request():
         finally: return response
 
     @staticmethod
-    def send_delete_endpoint(address, key):
+    def send_delete_endpoint(address, key, entry):
         response = None
-        try: response = requests.delete(f'http://{address}/kvs/{key}', timeout=2)
+        try: response = requests.delete(f'http://{address}/kvs/{key}', timeout=2, json = entry)
         except: response = Http_Error(500)
         finally: return response
     
     @staticmethod
-    def send_put_endpoint(address, key, request_json):
+    def send_put_endpoint(address, key, entry):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/{key}', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/{key}', json = entry, timeout=2, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
     

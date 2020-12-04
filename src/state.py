@@ -67,6 +67,33 @@ class State():
                     #TODO find the leader, solve for difference
                     pass
     
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    entry functions
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def build_delete_entry(self):
+        entry = Entry.build_entry('', 'DELETE', self.address, self.new_vector_clock())
+        entry['vector_clock'][self.address] += 1
+        return entry
+
+    def build_put_entry(self, value):
+        entry = Entry.build_entry(value, 'PUT',  self.address, self.new_vector_clock())
+        entry['vector_clock'][self.address] += 1
+        return entry
+    
+    def update_put_entry(self, value, entry):
+        entry['vector_clock'][self.address] += 1
+        entry['created_at'] = int(time.time())
+        entry['value'] = value
+        entry['method'] = 'PUT'
+        return entry
+
+    def update_delete_entry(self, entry):
+        entry['vector_clock'][self.address] += 1
+        entry['created_at'] = int(time.time())
+        entry['method'] = 'DELETE'
+        return entry
+
     def storage_contains(self, key):
         return key in self.storage and self.storage[key]['method'] != 'DELETE'
     
