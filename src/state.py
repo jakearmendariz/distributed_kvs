@@ -67,6 +67,32 @@ class State():
                     #TODO find the leader, solve for difference
                     pass
     
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    entry functions
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def build_delete_entry(self):
+        entry = Entry.build_entry('', 'DELETE', self.address, self.new_vector_clock())
+        entry['vector_clock'][self.address] += 1
+        return entry
+
+    def build_put_entry(self, value):
+        entry = Entry.build_entry(value, 'PUT',  self.address, self.new_vector_clock())
+        entry['vector_clock'][self.address] += 1
+        return entry
+    
+    def update_put_entry(self, value, entry):
+        update = self.build_put_entry(value)
+        update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
+        update['vector_clock'][self.address] += 1
+        return update
+
+    def update_delete_entry(self, entry):
+        update = self.build_delete_entry()
+        update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
+        update['vector_clock'][self.address] += 1
+        return update
+
     def storage_contains(self, key):
         return key in self.storage and self.storage[key]['method'] != 'DELETE'
     
@@ -109,14 +135,14 @@ class State():
             shard_id = self.shard_map[address]
             if self.shard_id != shard_id:
                 if self.storage[key]['method'] != 'DELETE':
-                    self.put_to_shard(shard_id, key, self.storage[key])
+                    self.put_to_shard(shard_id, key, self.storage[key]['value'])
                     self.key_count -= 1
                 del self.storage[key]
             elif self.address == address: # if key maps to our address, we have to nodify replicas so that they can have this value
                 for address in self.replicas:
                     response = None
                     if self.storage[key]['method'] != 'DELETE':
-                        response = Request.send_put(address, key, self.storage[key])
+                        response = Request.send_put(address, key, self.storage[key]['value'])
                     else:
                         response = Request.send_delete(address, key)
                     if response.status_code == 500:

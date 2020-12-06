@@ -256,7 +256,7 @@ class TestHW3(unittest.TestCase):
 			self.assertEqual(total, 0)
 			print(f'\ncompleted {key} round\n')
 
-# # # 	# add's, key-count, view-change, delete's, key-count
+# # 	# add's, key-count, view-change, delete's, key-count
 	def test_3(self):
 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
 		keys = 20

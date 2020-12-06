@@ -13,6 +13,7 @@ import sys
 import _thread
 import time
 from static import Request, Http_Error, Entry
+import copy
 
 global state
 @app.before_first_request
@@ -57,14 +58,17 @@ def put(key):
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
+        # if in storage update, else create
+        entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
+        # forward update to every replica
         for address in state.replicas:
-            response = Request.send_put_endpoint(address, key, request.get_json())
+            response = Request.send_put_endpoint(address, key, entry)
             status_code = response.status_code
-            if status_code != 500:
-                state.vector_clock[address] += 1
+            if status_code == 500:
+                state.queue[address][key] = entry
             else:
-                state.queue[address][key] = Entry.build_entry(data['value'], 'PUT', state.vector_clock)
-        response = Request.send_put_endpoint(state.address, key, request.get_json())
+                state.vector_clock[address] += 1
+        response = Request.send_put_endpoint(state.address, key, entry)
         return response.json(), response.status_code
     else:
         # try sending to every node inside of expected shard, first successful quit
@@ -72,17 +76,21 @@ def put(key):
 
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
+    global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]  
     if shard_id == state.shard_id:
+        entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
+        # Send entry to friends
         for replica_adddress in state.replicas:
-            response = Request.send_delete_endpoint(replica_adddress, key)
-            if response.status_code == 500:
-                state.queue[replica_adddress][key] = Entry.build_entry(method='DELETE', vector_clock=state.vector_clock)
-            else:
-                state.vector_clock[replica_adddress] += 1
+            if state.address != replica_adddress:
+                response = Request.send_delete_endpoint(replica_adddress, key, entry)
+                if response.status_code == 500:
+                    state.queue[replica_adddress][key] = entry
+                else:
+                    state.vector_clock[replica_adddress] += 1
         # Delete from personal storage
-        response = Request.send_delete_endpoint(state.address, key)
+        response = Request.send_delete_endpoint(state.address, key, entry)
         if response.status_code == 500:
             return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
         return response.json(), response.status_code
