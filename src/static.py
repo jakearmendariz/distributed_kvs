@@ -124,6 +124,14 @@ class Request():
         try: response = requests.get(f'http://{address}/kvs/update', timeout=3)
         except: response = Http_Error(500)
         finally: return response
+    
+    @staticmethod
+    def send_gossip(address, request_json):
+        response = None
+        try: response = requests.put(f'http://{address}/kvs/gossip', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
+
 
     @staticmethod
     def send_node_change(address, view, repl_factor):
