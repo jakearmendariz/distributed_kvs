@@ -93,14 +93,14 @@ def get_shard_membership():
 
 # Get shard information given a shard id.
 @app.route('/kvs/shards/<id>', methods=['GET'])
-def get_shard_information(shard_id):
-    shard_id -= 1
+def get_shard_information(id):
+    shard_id = int(id) - 1
     key_count = 0
     for i in range(kvs.state.repl_factor):
             address =kvs.state.view[shard_id*kvs.state.repl_factor + i]
             response = requests.get(f'http://{address}/kvs/key-count')
             key_count = max(key_count, response.json()['key-count'])
-    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id+1, 
+    return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, 
         "key-count": key_count, "replicas":kvs.state.view[shard_id*kvs.state.repl_factor:(shard_id+1)*kvs.state.repl_factor]}), 200
 
 

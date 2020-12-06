@@ -31,7 +31,7 @@ class Client():
 
     def viewChange(self, view, repl_factor, port):
         result = requests.put('http://%s:%s/kvs/view-change'%(localhost, str(port)),timeout=timeout,
-                              json={"view":str(view),'repl-factor':repl_factor,'causal-context':self.causal_context},
+                              json={"view":str(view),'repl-factor':repl_factor},
                               headers = {"Content-Type": "application/json"})
 
         if self.print_response:
@@ -41,7 +41,7 @@ class Client():
 
     def keyCount(self, port):
         result = requests.get('http://%s:%s/kvs/key-count'%(localhost, str(port)),timeout=timeout,
-                              json={'causal-context':self.causal_context},
+                              json={},
                               headers = {"Content-Type": "application/json"})
 
         if self.print_response:
@@ -51,7 +51,7 @@ class Client():
 
     def getShards(self, port):
         result = requests.get('http://%s:%s/kvs/shards'%(localhost, str(port)),timeout=timeout,
-                              json={'causal-context':self.causal_context},
+                              json={},
                               headers = {"Content-Type": "application/json"})
 
         if self.print_response:
@@ -61,7 +61,7 @@ class Client():
 
     def getShard(self, port, shard_id):
         result = requests.get('http://%s:%s/kvs/shards/%s'%(localhost, str(port), str(shard_id)),timeout=timeout,
-                              json={'causal-context':self.causal_context},
+                              json={},
                               headers = {"Content-Type": "application/json"})
 
         if self.print_response:
@@ -92,9 +92,11 @@ class Client():
 
             result["status_code"] = status_code
 
-            if self.causal_context_flag:
-                self.causal_context = result["causal-context"]
-            result.pop("causal-context")
+            if "causal-context" in result:
+                if self.causal_context_flag:
+                    self.causal_context = result["causal-context"]
+
+                result.pop("causal-context")
         else:
             result = {"status_code": status_code}
 
