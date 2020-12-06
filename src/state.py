@@ -136,14 +136,14 @@ class State():
             shard_id = self.shard_map[address]
             if self.shard_id != shard_id:
                 if self.storage[key]['method'] != 'DELETE':
-                    self.put_to_shard(shard_id, key, self.storage[key])
+                    self.put_to_shard(shard_id, key, self.storage[key]['value'])
                     self.key_count -= 1
                 del self.storage[key]
             elif self.address == address: # if key maps to our address, we have to nodify replicas so that they can have this value
                 for address in self.replicas:
                     response = None
                     if self.storage[key]['method'] != 'DELETE':
-                        response = Request.send_put(address, key, self.storage[key])
+                        response = Request.send_put(address, key, self.storage[key]['value'])
                     else:
                         response = Request.send_delete(address, key)
                     if response.status_code == 500:

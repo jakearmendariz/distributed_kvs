@@ -55,6 +55,7 @@ def getter(key):
 
 @app.route('/kvs/<key>', methods=['PUT'])
 def putter(key):
+    # app.logger.info(f'\n\nSTORAGE1: {kvs.state.storage}')
     kvs.state.vector_clock[kvs.state.address] += 1
     replace = kvs.state.storage_contains(key)
     if not replace: kvs.state.key_count += 1
@@ -62,15 +63,17 @@ def putter(key):
     status_code = 200 if replace else 201
     entry = request.get_json()
     kvs.state.storage[key] = entry
+    # app.logger.info(f'\n\nSTORAGE2: {kvs.state.storage}')
     return json.dumps({"message": message, "replaced": replace}), status_code
 
 
 @app.route('/kvs/<key>', methods=['DELETE'])
 def deleter(key):
     kvs.state.vector_clock[kvs.state.address] += 1
-    entry = request.get_json()
-    kvs.state.storage[key] = entry
-    if kvs.state.storage_contains(key):
+    # app.logger.info(f'\n\nSTORAGE3: {kvs.state.storage}')
+    in_storage = kvs.state.storage_contains(key)
+    kvs.state.storage[key] = request.get_json()
+    if in_storage:
         kvs.state.key_count -= 1
         return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
     else:
