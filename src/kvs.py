@@ -48,7 +48,6 @@ def get(key):
 
 @app.route('/kvs/keys/<key>', methods=['PUT'])
 def put(key):
-    # app.logger.info(f'PUT\n\n\n\nLOCAL VIEW {state.local_view}... REPLICAS: {state.replicas}')
     data = request.get_json()
     if 'value' not in data:
         app.logger.info(f'request json data:{data}')
@@ -60,7 +59,7 @@ def put(key):
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
         # if in storage update, else create
-        entry = state.update_put_entry(data['value'], copy.deepcopy(state.storage[key])) if key in state.storage else state.build_put_entry(data['value'])
+        entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
         # forward update to every replica
         for address in state.replicas:
             response = Request.send_put_endpoint(address, key, entry)
@@ -70,7 +69,6 @@ def put(key):
             else:
                 state.vector_clock[address] += 1
         response = Request.send_put_endpoint(state.address, key, entry)
-        # app.logger.info(f'STORAGE2.0:{state.storage}')
         return response.json(), response.status_code
     else:
         # try sending to every node inside of expected shard, first successful quit
@@ -81,13 +79,9 @@ def delete(key):
     global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]  
-    app.logger.info(f'STORAGE2.1:{state.storage}\n')
-    app.logger.info(f'DELETE\n\n\n\nLOCAL VIEW {state.local_view}... REPLICAS: {state.replicas}')
     if shard_id == state.shard_id:
-        app.logger.info(f'\nSTORAGE2.10:{state.storage}\n')
-        entry = state.update_delete_entry(copy.deepcopy(state.storage[key])) if key in state.storage else state.build_delete_entry()
+        entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
         # Send entry to friends
-        app.logger.info(f'\nSTORAGE2.11:{state.storage}\n')
         for replica_adddress in state.replicas:
             if state.address != replica_adddress:
                 response = Request.send_delete_endpoint(replica_adddress, key, entry)
@@ -96,7 +90,6 @@ def delete(key):
                 else:
                     state.vector_clock[replica_adddress] += 1
         # Delete from personal storage
-        app.logger.info(f'\nSTORAGE2.2:{state.storage}')
         response = Request.send_delete_endpoint(state.address, key, entry)
         if response.status_code == 500:
             return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503

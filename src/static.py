@@ -19,7 +19,7 @@ Every operation writing to the kvs will be saved as an entrys
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class Entry():
     @staticmethod
-    def build_entry(value = None, method='PUT', address = '', vector_clock={}):
+    def build_entry(value, method, address, vector_clock):
         entry = {}
         entry['value'] = value
         entry['method'] = method
@@ -57,7 +57,7 @@ class Entry():
     @staticmethod
     def max_of_entries(entry1, entry2):
         result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
-        if result == constants.CONCURRENT or result == constants.EQUAL:
+        if result == constants.CONCURRENT:
             entry = None
             if entry1['created_at'] > entry2['created_at']:
                 entry = entry1
@@ -71,8 +71,10 @@ class Entry():
         elif result == constants.LESS_THAN:
             entry2['created_at'] = int(time.time())
             return entry2
-        else: # greater than
+        elif result == constants.GREATER_THAN: # greater than
             entry1['created_at'] = int(time.time())
+            return entry1
+        else: # equal so entry1 and entry2 should have the same value
             return entry1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

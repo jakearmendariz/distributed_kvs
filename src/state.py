@@ -82,17 +82,20 @@ class State():
         return entry
     
     def update_put_entry(self, value, entry):
-        entry['vector_clock'][self.address] += 1
-        entry['created_at'] = int(time.time())
-        entry['value'] = value
-        entry['method'] = 'PUT'
-        return entry
+        update = self.build_put_entry(value)
+        update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
+        update['vector_clock'][self.address] += 1
+        update['created_at'] = int(time.time())
+        update['method'] = 'PUT'
+        return update
 
     def update_delete_entry(self, entry):
-        entry['vector_clock'][self.address] += 1
-        entry['created_at'] = int(time.time())
-        entry['method'] = 'DELETE'
-        return entry
+        update = self.build_delete_entry()
+        update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
+        update['vector_clock'][self.address] += 1
+        update['created_at'] = int(time.time())
+        update['method'] = 'DELETE'
+        return update
 
     def storage_contains(self, key):
         return key in self.storage and self.storage[key]['method'] != 'DELETE'
