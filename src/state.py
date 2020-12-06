@@ -85,16 +85,12 @@ class State():
         update = self.build_put_entry(value)
         update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
         update['vector_clock'][self.address] += 1
-        update['created_at'] = int(time.time())
-        update['method'] = 'PUT'
         return update
 
     def update_delete_entry(self, entry):
         update = self.build_delete_entry()
         update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
         update['vector_clock'][self.address] += 1
-        update['created_at'] = int(time.time())
-        update['method'] = 'DELETE'
         return update
 
     def storage_contains(self, key):
