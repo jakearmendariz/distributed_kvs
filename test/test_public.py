@@ -250,7 +250,10 @@ class TestHW3(unittest.TestCase):
             self.assertEqual_helper(response,expected)
             self.assertEqual(shard_id,self.check_shard_id_by_address(response,shards,address))
 
-        time.sleep(6) # wait for gossip
+        self.get_shard_helper
+        time.sleep(5) # wait for gossip
+        response = client.getShards(port)
+        print(f'getshards() response:{response}\nkey_counts0={key_counts0}')
         for in_ in ins:
             response = client.keyCount(in_["host_port"])
             key_count, shard_id = self.key_count_helper(response)
@@ -258,7 +261,7 @@ class TestHW3(unittest.TestCase):
             print(key_count)
             # if shard_id in key_counts0:
                 # print(key_counts0[shard_id])
-            self.assertEqual(key_count,key_counts0[shard_id])
+            self.assertEqual(key_count,key_counts0[str(shard_id)])
             # else:
             #     print(f'{shard_id} is not present in the keycounts0')
 
@@ -390,20 +393,20 @@ class TestHW3(unittest.TestCase):
 
         self.gossip_helper(shard_count,nodes,ins)
 
-    # def test_gossip_2(self):
-    #     shard_count,repl_factor = 2,2
+    def test_gossip_2(self):
+        shard_count,repl_factor = 2,2
 
-    #     nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+        nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
 
-    #     view = ",".join(nodes)
-    #     ins = [
-    #         {"host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-    #         {"host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
-    #         {"host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
-    #         {"host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
-    #     ]
+        view = ",".join(nodes)
+        ins = [
+            {"host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+            {"host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
+            {"host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
+            {"host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
+        ]
 
-    #     self.gossip_helper(shard_count,nodes,ins)
+        self.gossip_helper(shard_count,nodes,ins)
 
     # def test_view_change_1(self):
     #     old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
@@ -422,7 +425,7 @@ class TestHW3(unittest.TestCase):
     #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
     #     new_view = ",".join(new_nodes)
 
-    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
     # def test_view_change_2(self):
     #     old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]

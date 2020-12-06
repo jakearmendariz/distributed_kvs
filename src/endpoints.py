@@ -49,8 +49,8 @@ Setting values
 @app.route('/kvs/<key>', methods=['GET'])
 def getter(key):
     if kvs.state.storage_contains(key):
-        return json.dumps({"doesExist": True, "message": "Retrieved successfully", "value": kvs.state.storage[key]['value']}), 200, 
-    return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in GET"}), 404
+        return json.dumps({"doesExist": True, "message": "Retrieved successfully", "value": kvs.state.storage[key]['value'], "address":kvs.state.address}), 200, 
+    return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in GET", "address":kvs.state.address}), 404
     
 
 @app.route('/kvs/<key>', methods=['PUT'])
