@@ -364,33 +364,33 @@ class TestHW3(unittest.TestCase):
 
         return keycounts
 
-    # def test_gossip_1(self):
-    #     shard_count,repl_factor = 1,2
+    def test_gossip_1(self):
+        shard_count,repl_factor = 1,2
 
-    #     nodes = ["10.10.0.2:13800","10.10.0.3:13800"]
+        nodes = ["10.10.0.2:13800","10.10.0.3:13800"]
 
-    #     view = ",".join(nodes)
-    #     ins = [
-    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
-    #     ]
+        view = ",".join(nodes)
+        ins = [
+            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
+        ]
 
-    #     self.gossip_helper(shard_count,nodes,ins)
+        self.gossip_helper(shard_count,nodes,ins)
 
-    # def test_gossip_2(self):
-    #     shard_count,repl_factor = 2,2
+    def test_gossip_2(self):
+        shard_count,repl_factor = 2,2
 
-    #     nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+        nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
 
-    #     view = ",".join(nodes)
-    #     ins = [
-    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
-    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
-    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
-    #     ]
+        view = ",".join(nodes)
+        ins = [
+            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
+            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
+            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
+        ]
 
-    #     self.gossip_helper(shard_count,nodes,ins)
+        self.gossip_helper(shard_count,nodes,ins)
 
     def test_view_change_1(self):
         old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]

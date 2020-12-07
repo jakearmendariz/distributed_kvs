@@ -57,16 +57,12 @@ def put(key):
 
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
-    app.logger.info(key)
-    app.logger.info(address)
     app.logger.info("key: " + str(key) + " address: " + address + " key shard id: " + str(shard_id) + " self shard id: " + str(state.shard_id))
     if shard_id == state.shard_id:
         # if in storage update, else create
         entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
         # forward update to every replica
         for address in state.replicas:
-            if address <= state.address:
-                continue
             response = Request.send_put_endpoint(address, key, entry)
             status_code = response.status_code
             if status_code == 500:

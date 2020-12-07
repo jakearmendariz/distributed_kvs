@@ -46,7 +46,7 @@ class Client():
 
 	def viewChange(self, view, port, repl_factor=1):
 		result = requests.put('http://%s:%s/kvs/view-change'%(localhost, str(port)),
-							  json={"view":str(view), 'repl_factor':repl_factor},
+							  json={"view":str(view), 'repl-factor':repl_factor},
 							  headers = {"Content-Type": "application/json"})
 		print("PUT view-change result %s"%str(result.content))
 
@@ -159,7 +159,7 @@ class TestHW3(unittest.TestCase):
 		key_counts = [0] * num
 		total_keys = 0
 		for shard in result['shards']:
-			shard_id = shard['shard-id']
+			shard_id = int(shard['shard-id'])
 			key_count = shard['key-count']
 			key_counts[shard_id-1] = key_count
 			total_keys += key_count
@@ -235,8 +235,11 @@ class TestHW3(unittest.TestCase):
 			# add
 			result = client.putKey(key,value,nodes[id1]["port"])
 			self.assertEqual_helper(result,addResponse_Success)
+			# get
+			result = client.getKey(key,nodes[id2]["port"])
+			expected = getResponse_Success.copy()
 			# update
-			result = client.putKey(key,value,nodes[id1+1]["port"])
+			result = client.putKey(key,value,nodes[id1]["port"])
 			self.assertEqual_helper(result,updateResponse_Success)
 			# get
 			result = client.getKey(key,nodes[id2+1]["port"])
@@ -256,7 +259,7 @@ class TestHW3(unittest.TestCase):
 			self.assertEqual(total, 0)
 			print(f'\ncompleted {key} round\n')
 
-# # 	# add's, key-count, view-change, delete's, key-count
+# 	# add's, key-count, view-change, delete's, key-count
 	def test_3(self):
 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
 		keys = 20

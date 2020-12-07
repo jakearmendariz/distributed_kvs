@@ -17,10 +17,11 @@ def view_change():
     kvs.state.broadcast_view(view_str, replica_factor)
     app.logger.info("Completed broadcast view change: " + str(kvs.state.view))
     app.logger.info(kvs.state.shard_map)
-    app.logger.info(kvs.state.local_view)
-    app.logger.info(kvs.state.view)
-    app.logger.info(kvs.state.address)
-    app.logger.info(kvs.state.shard_id)
+    app.logger.info(f'local view:{kvs.state.local_view}')
+    app.logger.info(f'total view:{kvs.state.view}')
+    app.logger.info(f'address: {kvs.state.address}')
+    app.logger.info(f'replicas: {kvs.state.replicas}')
+    app.logger.info(f'shard_id:{kvs.state.shard_id}')
     app.logger.info(kvs.state.shard_ids)
 
     shards = {}
