@@ -56,7 +56,7 @@ class State():
         for address in self.replicas:
                 update = Request.send_get_update(address)
                 if update.status_code == 500:
-                    app.logger.info(f'{address} is down')
+                    #app.logger.info(f'{address} is down')
                     continue
                 update = update.json()
                 version = Entry.compare_vector_clocks(self.vector_clock, update['vector_clock'])
@@ -102,7 +102,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor, multi_threaded = True):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
@@ -121,19 +121,19 @@ class State():
                 thread.join()
     
     def node_change(self, view, repl_factor):
-        app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
+        #app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
         if set(view) == set(self.view):
-            app.logger.info("No view change")
+            #app.logger.info("No view change")
             return
-        app.logger.info("View changed from " + str(self.view) + " to " + str(view))
+        #app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
-        app.logger.info("repl_factor: " + str(repl_factor))
+        #app.logger.info("repl_factor: " + str(repl_factor))
         self.update_view(view, repl_factor)
-        app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
+        #app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
     def key_migration(self, view):
-        app.logger.info("Key migration starts")
+        #app.logger.info("Key migration starts")
         for key in list(self.storage.keys()):
             address = self.maps_to(key)
             shard_id = self.shard_map[address]
@@ -151,13 +151,13 @@ class State():
                         response = Request.send_delete(address, key)
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
-        app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
+        #app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
         
     # Sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value):
         for i in range(self.repl_factor):
-            app.logger.info(shard_id)
-            app.logger.info(self.repl_factor)
+            #app.logger.info(shard_id)
+            #app.logger.info(self.repl_factor)
             address = self.view[(shard_id-1)*self.repl_factor + i]
             response = Request.send_put(address, key, value)
             if response.status_code != 500:
@@ -171,11 +171,11 @@ class State():
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
         self.repl_factor = repl_factor
-        app.logger.info(self.repl_factor)
+        #app.logger.info(self.repl_factor)
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
-        app.logger.info("updated shard map: ")
-        app.logger.info(self.shard_map)
+        #app.logger.info("updated shard map: ")
+        #app.logger.info(self.shard_map)
         self.shard_ids = [str(id) for id in set(self.shard_map.values())]
         self.shard_id = self.shard_map.get(self.address, 0)
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]

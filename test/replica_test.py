@@ -342,17 +342,57 @@ class TestHW3(unittest.TestCase):
 	# 	# key-count
 	# 	key_counts3, total3 = self.get_key_counts(3)
 	# 	self.assertEqual(total3, 0)
-	def test_5(self):
-		result = client.viewChange(build_view(0,1),nodes[1]["port"],1)
-		keys = 100
+	# def test_5(self):
+	# 	result = client.viewChange(build_view(0,1),nodes[1]["port"],1)
+	# 	keys = 30
+	# 	# add's
+	# 	for i in range(keys):
+	# 		id = 1
+	# 		result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
+
+	# 	# key-count
+	# 	key_counts1, total1 = self.get_key_counts(4)
+	# 	self.assertEqual(total1, keys)
+	# 	# view-change
+	# 	# print('VIEW CHANGE')
+	# 	# result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+
+	# 	# key_counts2, total2 = self.check_view_change(result,2)
+	# 	# self.assertEqual(total2, keys)
+	# 	# print(key_counts1, "===>", key_counts2)
+
+	# 	result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
+	# 	key_counts3, total3 = self.check_view_change(result,4)
+	# 	print(key_counts3)
+	# 	self.assertEqual(total3, keys*2)
+	# 	# todo: check if shards are balanced
+	# 	for i in range(keys):
+	# 		id = i%3
+	# 		if id == 0:
+	# 			id = 3
+
+	# 		key = "test_2_%d"%i
+	# 		result = client.deleteKey(key, nodes[id]["port"])
+	# 		self.check_node_id(result,id,3)
+	# 		self.assertEqual_helper(result, delResponse_Success)
+	# 	# key-count
+	# 	key_counts3, total3 = self.get_key_counts(3)
+	# 	self.assertEqual(total3, 0)
+
+	def test_6(self):
+		repl_factor = 2
+		result = client.viewChange(build_view(0,2),nodes[1]["port"],repl_factor)
+		keys = 30
 		# add's
 		for i in range(keys):
-			id = 1
+			id=i%2
+			if i%2 == 0:
+				id=2
 			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
 
 		# key-count
 		key_counts1, total1 = self.get_key_counts(4)
-		self.assertEqual(total1, keys)
+		self.assertEqual(total1, keys*repl_factor)
 		# view-change
 		# print('VIEW CHANGE')
 		# result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
@@ -361,10 +401,10 @@ class TestHW3(unittest.TestCase):
 		# self.assertEqual(total2, keys)
 		# print(key_counts1, "===>", key_counts2)
 
-		result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
+		result = client.viewChange(build_view(0,4),nodes[1]["port"], repl_factor)
 		key_counts3, total3 = self.check_view_change(result,4)
 		print(key_counts3)
-		self.assertEqual(total3, keys*2)
+		self.assertEqual(total3, keys)
 		# todo: check if shards are balanced
 		for i in range(keys):
 			id = i%3

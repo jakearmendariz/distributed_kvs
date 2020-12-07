@@ -13,27 +13,27 @@ view change
 def view_change():
     view_str = request.get_json()['view']
     replica_factor = request.get_json().get('repl-factor', kvs.state.repl_factor)
-    app.logger.info("Start broadcast view change: " + str(kvs.state.view))
+    ##app.logger.info("Start broadcast view change: " + str(kvs.state.view))
     kvs.state.broadcast_view(view_str, replica_factor)
-    app.logger.info("Completed broadcast view change: " + str(kvs.state.view))
-    app.logger.info(kvs.state.shard_map)
-    app.logger.info(f'local view:{kvs.state.local_view}')
-    app.logger.info(f'total view:{kvs.state.view}')
-    app.logger.info(f'address: {kvs.state.address}')
-    app.logger.info(f'replicas: {kvs.state.replicas}')
-    app.logger.info(f'shard_id:{kvs.state.shard_id}')
-    app.logger.info(kvs.state.shard_ids)
+    ##app.logger.info("Completed broadcast view change: " + str(kvs.state.view))
+    ##app.logger.info(kvs.state.shard_map)
+    ##app.logger.info(f'local view:{kvs.state.local_view}')
+    ##app.logger.info(f'total view:{kvs.state.view}')
+    ##app.logger.info(f'address: {kvs.state.address}')
+    ##app.logger.info(f'replicas: {kvs.state.replicas}')
+    ##app.logger.info(f'shard_id:{kvs.state.shard_id}')
+    ##app.logger.info(kvs.state.shard_ids)
 
     shards = {}
-    app.logger.info(kvs.state.view)
-    app.logger.info("started kvs key count") 
+    ##app.logger.info(kvs.state.view)
+    ##app.logger.info("started kvs key count") 
     for address in kvs.state.view:
         response = Request.send_get(address, 'key-count')
         if response.status_code == 500: continue
         shard_id = response.json()["shard-id"]
         key_count = response.json()['key-count']
         if shard_id in shards:
-            app.logger.info(f'KEY_COUNT:{key_count} SHARDS[KEY_COUNT]:{shards[shard_id]["key-count"]}')
+            ##app.logger.info(f'KEY_COUNT:{key_count} SHARDS[KEY_COUNT]:{shards[shard_id]["key-count"]}')
             key_count = min(key_count, shards[shard_id]['key-count'])
             shards[shard_id]['key-count'] = key_count
         else:
@@ -43,7 +43,7 @@ def view_change():
 
 @app.route('/kvs/node-change', methods=['PUT'])
 def node_change():
-    app.logger.info(request.get_json()['view'])
+    ##app.logger.info(request.get_json()['view'])
     kvs.state.node_change(request.get_json()['view'].split(','), int(request.get_json()['repl-factor']))
     return json.dumps({"message":"node change succeed"}), 201
 

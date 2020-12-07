@@ -50,14 +50,14 @@ def get(key):
 def put(key):
     data = request.get_json()
     if 'value' not in data:
-        app.logger.info(f'request json data:{data}')
+        #app.logger.info(f'request json data:{data}')
         return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
     if len(key) > 50:
         return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
 
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
-    app.logger.info("key: " + str(key) + " address: " + address + " key shard id: " + str(shard_id) + " self shard id: " + str(state.shard_id))
+    #app.logger.info("key: " + str(key) + " address: " + address + " key shard id: " + str(shard_id) + " self shard id: " + str(state.shard_id))
     if shard_id == state.shard_id:
         # if in storage update, else create
         entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
@@ -72,7 +72,7 @@ def put(key):
         response = Request.send_put_endpoint(state.address, key, entry)
         return response.json(), response.status_code
     else:
-        app.logger.info("Forward PUT to shard: " + str(shard_id))
+        #app.logger.info("Forward PUT to shard: " + str(shard_id))
         # try sending to every node inside of expected shard, first successful quit
         return state.put_to_shard(shard_id, key, data['value'])
 
