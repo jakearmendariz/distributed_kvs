@@ -153,9 +153,12 @@ class State():
     def put_to_shard(self, shard_id, key, value):
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
+            app.logger.info(address)
             response = Request.send_put(address, key, value)
             if response.status_code != 500:
-                return response.json(), response.status_code
+                json_payload = response.json()
+                json_payload['address'] = address
+                return json_payload, response.status_code
         # unreachable by TA guarentee at least one node will be available in every shard
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
     
