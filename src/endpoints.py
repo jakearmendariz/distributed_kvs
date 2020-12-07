@@ -33,7 +33,8 @@ def view_change():
         shard_id = response.json()["shard-id"]
         key_count = response.json()['key-count']
         if shard_id in shards:
-            key_count = max(key_count, shards[shard_id]['key-count'])
+            app.logger.info(f'KEY_COUNT:{key_count} SHARDS[KEY_COUNT]:{shards[shard_id]["key-count"]}')
+            key_count = min(key_count, shards[shard_id]['key-count'])
             shards[shard_id]['key-count'] = key_count
         else:
             replicas = [address for address in kvs.state.view if shard_id == str(kvs.state.shard_map[address])]
@@ -117,7 +118,7 @@ send all of storage
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/update', methods=["GET"])
 def my_state():
-    payload = {"store":kvs.state.storage, "vector_clock":kvs.state.vector_clock()}
+    payload = {"store":kvs.state.storage, "vector_clock":kvs.state.vector_clock}
     return json.dumps(payload), 200
 
 @app.route('/kvs/clear-storage', methods=["PUT"])
