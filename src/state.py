@@ -25,7 +25,10 @@ class State():
         # dictionary of all addresses in global view and their shard id's
         self.shard_map = {address: (index // int(self.repl_factor) + 1) for index, address in enumerate(self.view)}
         self.shard_ids = [str(id) for id in set(self.shard_map.values())]
-        self.shard_id = self.shard_map[self.address]
+        if self.address in self.shard_map:
+            self.shard_id = self.shard_map[self.address]
+        else:
+            self.shard_id = -1
         # The number of virtual nodes per node
         self.virtual_map = {}
         for address in self.view:
@@ -125,6 +128,7 @@ class State():
         app.logger.info("View changed from " + str(self.view) + " to " + str(view))
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
+        app.logger.info("repl_factor: " + str(repl_factor))
         self.update_view(view, repl_factor)
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
@@ -146,14 +150,15 @@ class State():
                     else:
                         response = Request.send_delete(address, key)
                     if response.status_code == 500:
-                        self.queue['address']['key'] = self.storage[key]
-        app.logger.info(f'view change operation complete. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
+                        self.queue[address]['key'] = self.storage[key]
+        app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
         
     # Sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value):
         for i in range(self.repl_factor):
+            app.logger.info(shard_id)
+            app.logger.info(self.repl_factor)
             address = self.view[(shard_id-1)*self.repl_factor + i]
-            app.logger.info(address)
             response = Request.send_put(address, key, value)
             if response.status_code != 500:
                 json_payload = response.json()
@@ -166,12 +171,16 @@ class State():
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
         self.repl_factor = repl_factor
+        app.logger.info(self.repl_factor)
         self.indices = sorted(self.virtual_map.keys())
         self.shard_map = {address:(index//int(self.repl_factor) + 1) for index,address in enumerate(self.view)}
+        app.logger.info("updated shard map: ")
+        app.logger.info(self.shard_map)
         self.shard_ids = [str(id) for id in set(self.shard_map.values())]
         self.shard_id = self.shard_map.get(self.address, 0)
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
+        self.vector_clock = {address:0 for address in self.local_view}
 
     def add_nodes(self, adding):
         for address in adding:

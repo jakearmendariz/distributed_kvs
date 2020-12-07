@@ -136,7 +136,7 @@ class Request():
     @staticmethod
     def send_node_change(address, view, repl_factor):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl_factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/node-change', json = {"view":view, 'repl-factor':repl_factor}, timeout=6, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 

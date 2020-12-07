@@ -15,12 +15,13 @@ def begin_gossip():
     scheduler.start()
 
 def anti_entropy():
-    app.logger.info(f'anti_entropy')
-    for address in kvs.state.queue:
-        if len(kvs.state.queue[address]) > 0:
-            response = Request.send_gossip(address, {'address':kvs.state.address, 'queue':kvs.state.queue[address]})
-            if response.status_code != 500:
-                kvs.state.queue[address].clear()
+    return
+    # app.logger.info(f'anti_entropy')
+    # for address in kvs.state.queue:
+    #     if len(kvs.state.queue[address]) > 0:
+    #         response = Request.send_gossip(address, {'address':kvs.state.address, 'queue':kvs.state.queue[address]})
+    #         if response.status_code != 500:
+    #             kvs.state.queue[address].clear()
 
 @app.route('/kvs/gossip', methods=['PUT'])
 def gossip_endpoint():
