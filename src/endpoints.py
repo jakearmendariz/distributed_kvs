@@ -84,7 +84,7 @@ Information endpoints
 @app.route('/kvs/key-count', methods=['GET'])
 def count():
     return json.dumps({"message":"Key count retrieved successfully","key-count":kvs.state.key_count, 
-        "shard-id": kvs.state.shard_id}), 200, 
+        "shard-id": str(kvs.state.shard_id)}), 200, 
 
 # Returns an array of string ids
 @app.route('/kvs/shards', methods=['GET'])
