@@ -7,12 +7,12 @@ from static import Request, Http_Error, Entry
 import kvs
 from flask import request
 
-# @app.before_first_request
-# def begin_gossip():
-    # app.logger.info(f'Adding a background scheduler for gossip, running every {GOSSIP_TIMEOUT} miliseconds')
-    # scheduler = BackgroundScheduler()
-    # scheduler.add_job(func=anti_entropy, trigger="interval", seconds=GOSSIP_TIMEOUT * 0.001)
-    # scheduler.start()
+@app.before_first_request
+def begin_gossip():
+    app.logger.info(f'Adding a background scheduler for gossip, running every {GOSSIP_TIMEOUT} seconds')
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=anti_entropy, trigger="interval", seconds=GOSSIP_TIMEOUT)
+    scheduler.start()
 
 def anti_entropy():
     app.logger.info(f'anti_entropy')
