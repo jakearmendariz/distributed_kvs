@@ -115,7 +115,7 @@ def disconnectFromNetwork(subnetName, instanceName):
 ################################# Unit Test Class ############################################################
 
 extra_credit = False # this feature is WIP
-print_response = False
+print_response = True
 
 class TestHW3(unittest.TestCase):
     buildDockerImage()
@@ -365,90 +365,90 @@ class TestHW3(unittest.TestCase):
 
         return keycounts
 
-    def test_gossip_1(self):
-        shard_count,repl_factor = 1,2
+    # def test_gossip_1(self):
+    #     shard_count,repl_factor = 1,2
 
-        nodes = ["10.10.0.2:13800","10.10.0.3:13800"]
+    #     nodes = ["10.10.0.2:13800","10.10.0.3:13800"]
 
-        view = ",".join(nodes)
-        ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
-        ]
+    #     view = ",".join(nodes)
+    #     ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
+    #     ]
 
-        self.gossip_helper(shard_count,nodes,ins)
+    #     self.gossip_helper(shard_count,nodes,ins)
 
-    def test_gossip_2(self):
-        shard_count,repl_factor = 2,2
+    # def test_gossip_2(self):
+    #     shard_count,repl_factor = 2,2
 
-        nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     nodes = ["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
 
-        view = ",".join(nodes)
-        ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
-        ]
+    #     view = ",".join(nodes)
+    #     ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":view,"repl_factor":repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":view,"repl_factor":repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":view,"repl_factor":repl_factor},
+    #     ]
 
-        self.gossip_helper(shard_count,nodes,ins)
+    #     self.gossip_helper(shard_count,nodes,ins)
 
-    def test_view_change_1(self):
-        old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_1(self):
+    #     old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
-    def test_view_change_2(self):
-        old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_2(self):
+    #     old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
-    def test_view_change_3(self):
-        old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_3(self):
+    #     old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 1,2,["10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 1,2,["10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
     # def test_network_partition_1(self):
     #     # test eventual consistency
@@ -519,79 +519,79 @@ class TestHW3(unittest.TestCase):
     #     self.assertEqual(response1["value"],response2["value"])
     #     self.assertTrue(response1["value"] == "node1" or response1["value"] == "node2")
 
-    # def test_network_partition_2(self):
-    #     # test causal consistency
-    #     alice = Client(print_response=print_response)
-    #     bob = Client(print_response=print_response)
-    #     carol = Client(print_response=print_response)
+    def test_network_partition_2(self):
+        # test causal consistency
+        alice = Client(print_response=print_response)
+        bob = Client(print_response=print_response)
+        carol = Client(print_response=print_response)
 
-    #     shard_count,repl_factor,nodes = 1,2,["10.10.0.2:13800","10.11.0.2:13800"]
-    #     view = ",".join(nodes)
-    #     ins = [
-    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
-    #         {"subnet":"kv_subnet_partition","host_port":13801,"ip_address":"10.11.0.2","address":"10.11.0.2:13800","name":"node2","view":view,"repl_factor":repl_factor},
-    #     ]
+        shard_count,repl_factor,nodes = 1,2,["10.10.0.2:13800","10.11.0.2:13800"]
+        view = ",".join(nodes)
+        ins = [
+            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":repl_factor},
+            {"subnet":"kv_subnet_partition","host_port":13801,"ip_address":"10.11.0.2","address":"10.11.0.2:13800","name":"node2","view":view,"repl_factor":repl_factor},
+        ]
 
-    #     stopAndRemoveAll()
-    #     runInstances(ins)
+        stopAndRemoveAll()
+        runInstances(ins)
 
-    #     address1,port1 = ins[0]["address"],ins[0]["host_port"]
-    #     address2,port2 = ins[1]["address"],ins[1]["host_port"]
+        address1,port1 = ins[0]["address"],ins[0]["host_port"]
+        address2,port2 = ins[1]["address"],ins[1]["host_port"]
 
-    #     # by default, there is a network partition between kv_subnet and kv_subnet_partition, heal it before testing
-    #     # node2 -> node1 through bridge (subnet) kv_subnet
-    #     # node1 -> node2 through bridge (subnet) kv_subnet_partition
-    #     connectToNetwork("kv_subnet","node2")
-    #     connectToNetwork("kv_subnet_partition","node1")
+        # by default, there is a network partition between kv_subnet and kv_subnet_partition, heal it before testing
+        # node2 -> node1 through bridge (subnet) kv_subnet
+        # node1 -> node2 through bridge (subnet) kv_subnet_partition
+        connectToNetwork("kv_subnet","node2")
+        connectToNetwork("kv_subnet_partition","node1")
 
-    #     # initialize variables a and b
-    #     client = Client(causal_context_flag=False,print_response=print_response)
-    #     client.putKey("a","init a",port1)
-    #     client.putKey("b","init b",port2)
-    #     time.sleep(5)
-    #     response = client.getKey("a",port2)
-    #     self.assertEqual(response["value"],"init a")
-    #     response = client.getKey("b",port1)
-    #     self.assertEqual(response["value"],"init b")
+        # initialize variables a and b
+        client = Client(causal_context_flag=False,print_response=print_response)
+        client.putKey("a","init a",port1)
+        client.putKey("b","init b",port2)
+        time.sleep(5)
+        response = client.getKey("a",port2)
+        self.assertEqual(response["value"],"init a")
+        response = client.getKey("b",port1)
+        self.assertEqual(response["value"],"init b")
 
-    #     # create network partition
-    #     disconnectFromNetwork("kv_subnet","node2")
-    #     disconnectFromNetwork("kv_subnet_partition","node1")
+        # create network partition
+        disconnectFromNetwork("kv_subnet","node2")
+        disconnectFromNetwork("kv_subnet_partition","node1")
 
-    #     # Alice writes a="Bob smells" to node1
-    #     a = "Bob smells"
-    #     response = alice.putKey("a",a,port1)
-    #     self.assertEqual_helper(response,updateResponse_Success)
+        # Alice writes a="Bob smells" to node1
+        a = "Bob smells"
+        response = alice.putKey("a",a,port1)
+        self.assertEqual_helper(response,updateResponse_Success)
 
-    #     # Bob reads a from node1 and writes b="Fuck you Alice" to node2
-    #     b = "Fuck you Alice"
-    #     response = bob.getKey("a",port1)
-    #     self.assertEqual(response["value"],a)
+        # Bob reads a from node1 and writes b="Fuck you Alice" to node2
+        b = "Fuck you Alice"
+        response = bob.getKey("a",port1)
+        self.assertEqual(response["value"],a)
 
-    #     response = bob.putKey("b",b,port2)
-    #     self.assertEqual_helper(response,updateResponse_Success)
+        response = bob.putKey("b",b,port2)
+        self.assertEqual_helper(response,updateResponse_Success)
 
-    #     # Carol reads b from node2
-    #     response = carol.getKey("b",port2)
-    #     self.assertEqual(response["value"],b)
+        # Carol reads b from node2
+        response = carol.getKey("b",port2)
+        self.assertEqual(response["value"],b)
 
-    #     # Carol reads a from node2 and gets NACK or "Bob smells"
-    #     response = carol.getKey("a",port2)
-    #     self.assertTrue(response["status_code"] in [200,400])
-    #     if response["status_code"] == 400: # nack
-    #         self.assertEqual(response["error"],"Unable to satisfy request")
-    #         self.assertEqual(response["message"],"Error in GET")
-    #     elif response["status_code"] == 200:
-    #         self.assertEqual(response["value"],a)
+        # Carol reads a from node2 and gets NACK or "Bob smells"
+        response = carol.getKey("a",port2)
+        self.assertTrue(response["status_code"] in [200,400])
+        if response["status_code"] == 400: # nack
+            self.assertEqual(response["error"],"Unable to satisfy request")
+            self.assertEqual(response["message"],"Error in GET")
+        elif response["status_code"] == 200:
+            self.assertEqual(response["value"],a)
 
-    #     # Alice writes a="Bob still smells" to node2
-    #     a = "Bob still smells"
-    #     response = alice.putKey("a",a,port2)
-    #     self.assertEqual_helper(response,updateResponse_Success)
+        # Alice writes a="Bob still smells" to node2
+        a = "Bob still smells"
+        response = alice.putKey("a",a,port2)
+        self.assertEqual_helper(response,updateResponse_Success)
 
-    #     # Carol reads a from node2 and gets "Bob still smells"
-    #     response = carol.getKey("a",port2)
-    #     self.assertEqual(response["value"],a)
+        # Carol reads a from node2 and gets "Bob still smells"
+        response = carol.getKey("a",port2)
+        self.assertEqual(response["value"],a)
 
 if __name__ == '__main__':
     unittest.main()
