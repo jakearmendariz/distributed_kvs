@@ -2,16 +2,16 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import atexit
 from app import app
-from constants import GOSSIP_TIMEOUT
+import constants
 from static import Request, Http_Error, Entry
 import kvs
 from flask import request
 
 @app.before_first_request
 def begin_gossip():
-    # app.logger.info(f'Adding a background scheduler for gossip, running every {GOSSIP_TIMEOUT} miliseconds')
+    # app.logger.info(f'Adding a background scheduler for gossip, running every {constants.GOSSIP_TIMEOUT} seconds')
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=anti_entropy, trigger="interval", seconds=GOSSIP_TIMEOUT * 0.001)
+    scheduler.add_job(func=anti_entropy, trigger="interval", seconds=constants.GOSSIP_TIMEOUT)
     scheduler.start()
 
 def anti_entropy():
