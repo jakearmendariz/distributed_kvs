@@ -93,7 +93,9 @@ class Client():
             result["status_code"] = status_code
 
             if "causal-context" in result:
+                print('Casual context in result\n\n')
                 if self.causal_context_flag:
+                    print(f'Setting causal_context to {result["causal-context"]}')
                     self.causal_context = result["causal-context"]
 
                 result.pop("causal-context")

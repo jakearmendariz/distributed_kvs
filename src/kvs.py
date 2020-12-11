@@ -28,17 +28,21 @@ key value store
 def get(key):
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
+    data = request.get_json()
+    if data == None: data = {}
+    causal_context = data.get('causal-context')
+    app.logger.info(f'GET keys/kvs/causal_context:{causal_context}\n\n')
     if shard_id == state.shard_id:
-        # TODO verify causual consistency from request context
-        if key in state.storage:
-            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": state.storage[key]['value']}), 200, 
-        return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET"}), 404
+        response = Request.send_get(state.address, key, causal_context)
+        payload = response.json()
+        if 'address' in payload: del payload['address']
+        return payload, response.status_code
     else:
         # Attempt to send to every address in a shard, first one that doesn't tine 
         shard_id -= 1
         for i in range(state.repl_factor):
             address = state.view[shard_id*state.repl_factor + i]
-            response = Request.send_get(address, key)
+            response = Request.send_get(address, key, causal_context)
             if response.status_code != 500:
                 return response.json(), response.status_code
         app.logger.error(f'No requests were successfully forwarded to shard.{shard_id}')
@@ -49,6 +53,8 @@ def get(key):
 @app.route('/kvs/keys/<key>', methods=['PUT'])
 def put(key):
     data = request.get_json()
+    causal_context = data.get('causal-context')
+    app.logger.info(f'PUT keys/kvs/causal_context:{causal_context}\n\n')
     if 'value' not in data:
         #app.logger.info(f'request json data:{data}')
         return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
@@ -61,6 +67,7 @@ def put(key):
     if shard_id == state.shard_id:
         # if in storage update, else create
         entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
+        causal_context[key] = entry
         # forward update to every replica
         for address in state.replicas:
             response = Request.send_put_endpoint(address, key, entry)
@@ -69,12 +76,15 @@ def put(key):
                 state.queue[address][key] = entry
             else:
                 state.vector_clock[address] += 1
+        # save on local, return causal context to client
         response = Request.send_put_endpoint(state.address, key, entry)
-        return response.json(), response.status_code
+        payload = response.json()
+        payload['causal-context'] = causal_context
+        payload['causal-context'][key] = entry
+        return payload, response.status_code
     else:
-        #app.logger.info("Forward PUT to shard: " + str(shard_id))
         # try sending to every node inside of expected shard, first successful quit
-        return state.put_to_shard(shard_id, key, data['value'])
+        return state.put_to_shard(shard_id, key, data['value'], causal_context)
 
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):

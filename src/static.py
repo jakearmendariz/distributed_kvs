@@ -84,16 +84,16 @@ Contains a series of functions to make requests allowing for errors of the serve
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class Request():
     @staticmethod
-    def send_get(address, key):
+    def send_get(address, key,causal_context):
         response = None
-        try: response = requests.get(f'http://{address}/kvs/{key}', timeout=2)
+        try: response = requests.get(f'http://{address}/kvs/{key}', json = {'causal-context':causal_context}, timeout=2)
         except: response = Http_Error(500)
         finally: return response
     
     @staticmethod
-    def send_put(address, key, value):
+    def send_put(address, key, value, causal_context={}):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value}, timeout=2, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value, 'causal-context':causal_context}, timeout=2, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
     
@@ -128,7 +128,7 @@ class Request():
     @staticmethod
     def send_gossip(address, request_json):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/gossip', json = request_json, timeout=2, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/gossip', json = request_json, timeout=1, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 

@@ -13,27 +13,16 @@ view change
 def view_change():
     view_str = request.get_json()['view']
     replica_factor = request.get_json().get('repl-factor', kvs.state.repl_factor)
-    ##app.logger.info("Start broadcast view change: " + str(kvs.state.view))
+    app.logger.info("Start broadcast view change: " + str(kvs.state.view))
     kvs.state.broadcast_view(view_str, replica_factor)
-    ##app.logger.info("Completed broadcast view change: " + str(kvs.state.view))
-    ##app.logger.info(kvs.state.shard_map)
-    ##app.logger.info(f'local view:{kvs.state.local_view}')
-    ##app.logger.info(f'total view:{kvs.state.view}')
-    ##app.logger.info(f'address: {kvs.state.address}')
-    ##app.logger.info(f'replicas: {kvs.state.replicas}')
-    ##app.logger.info(f'shard_id:{kvs.state.shard_id}')
-    ##app.logger.info(kvs.state.shard_ids)
 
     shards = {}
-    ##app.logger.info(kvs.state.view)
-    ##app.logger.info("started kvs key count") 
     for address in kvs.state.view:
-        response = Request.send_get(address, 'key-count')
+        response = Request.send_get(address, 'key-count', {})
         if response.status_code == 500: continue
         shard_id = response.json()["shard-id"]
         key_count = response.json()['key-count']
         if shard_id in shards:
-            ##app.logger.info(f'KEY_COUNT:{key_count} SHARDS[KEY_COUNT]:{shards[shard_id]["key-count"]}')
             key_count = min(key_count, shards[shard_id]['key-count'])
             shards[shard_id]['key-count'] = key_count
         else:
@@ -43,7 +32,7 @@ def view_change():
 
 @app.route('/kvs/node-change', methods=['PUT'])
 def node_change():
-    ##app.logger.info(request.get_json()['view'])
+    #app.logger.info(request.get_json()['view'])
     kvs.state.node_change(request.get_json()['view'].split(','), int(request.get_json()['repl-factor']))
     return json.dumps({"message":"node change succeed"}), 201
 
@@ -57,9 +46,24 @@ Setting values
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/<key>', methods=['GET'])
 def getter(key):
-    if kvs.state.storage_contains(key):
-        return json.dumps({"doesExist": True, "message": "Retrieved successfully", "value": kvs.state.storage[key]['value'], "address":kvs.state.address}), 200, 
-    return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in GET", "address":kvs.state.address}), 404
+    causal_context = request.get_json()['causal-context']
+    app.logger.info(f'endpoints/causal_context:{causal_context}\n\n')
+    if key in kvs.state.storage:
+        entry = kvs.state.storage[key]
+        # Get the max of the causal context or a newer entry in storage
+        # app.logger.info(f'\n\nMAX OF ENTRIES\nentry:{entry}\ncausal:{causal_context.get(key, {})}')
+        if key in causal_context: entry = Entry.max_of_entries(entry, causal_context[key])
+        app.logger.info(f'max={entry}')
+        causal_context[key] = entry
+        if entry['method'] == 'DELETE':
+            return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
+        else:
+            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": entry['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200 
+    else:
+        if key in causal_context and causal_context[key]['method'] !='DELETE':
+            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": causal_context[key]['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200,
+        return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
+        
     
 
 @app.route('/kvs/<key>', methods=['PUT'])

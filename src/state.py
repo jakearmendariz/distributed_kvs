@@ -153,10 +153,10 @@ class State():
         #app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
         
     # Sends a value to a shard, first successful request wins
-    def put_to_shard(self, shard_id, key, value):
+    def put_to_shard(self, shard_id, key, value, causal_context={}):
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
-            response = Request.send_put(address, key, value)
+            response = Request.send_put(address, key, value, causal_context)
             if response.status_code != 500:
                 json_payload = response.json()
                 json_payload['address'] = address
