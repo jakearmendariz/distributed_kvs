@@ -6,16 +6,15 @@ import constants
 from static import Request, Http_Error, Entry
 import kvs
 from flask import request
+import json
 
 @app.before_first_request
 def begin_gossip():
-    # app.logger.info(f'Adding a background scheduler for gossip, running every {constants.GOSSIP_TIMEOUT} seconds')
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=anti_entropy, trigger="interval", seconds=constants.GOSSIP_TIMEOUT)
     scheduler.start()
 
 def anti_entropy():
-    # app.logger.info(f'anti_entropy')
     for address in kvs.state.queue:
         if len(kvs.state.queue[address]) > 0:
             response = Request.send_gossip(address, {'address':kvs.state.address, 'queue':kvs.state.queue[address]})
@@ -24,10 +23,13 @@ def anti_entropy():
 
 @app.route('/kvs/gossip', methods=['PUT'])
 def gossip_endpoint():
-    # app.logger.info(f'gossip recieved from {request.get_json()["address"]}')
     queue = request.get_json()['queue']
     for key in queue.keys():
         if key in kvs.state.storage:
-            kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage[key], queue[key])
+            try:
+                kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage[key], queue[key])
+            except:
+                app.logger.info(f'COMPARING {kvs.state.storage[key]} and {queue[key]}')
         else:
             kvs.state.storage[key] = queue[key]
+    return json.dumps({'message':'gossip complete'}), 200

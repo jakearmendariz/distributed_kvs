@@ -217,7 +217,7 @@ class TestHW3(unittest.TestCase):
 			self.assertEqual(total, 0)
 			print(f'\ncompleted {key} round\n')
 
-# 	# (two replicas, check to see if they update
+	# (two replicas, check to see if they update
 	def test_2(self):
 		repl_factor = 2
 		result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)

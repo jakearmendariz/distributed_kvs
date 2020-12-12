@@ -43,6 +43,7 @@ class State():
         # create a deep copy of replicas. LOOK INTO DEEP COPY VS COPY
         # self.up_nodes = self.replicas.copy()
         self.vector_clock = {address:0 for address in self.local_view}
+        self.logical = 0
         # ask other nodes in shard for their values upon startup
         # self.start_up()
         self.queue = {address:{} for address in self.local_view}
@@ -134,6 +135,7 @@ class State():
     def key_migration(self, view):
         app.logger.info("Key migration starts")
         for key in list(self.storage.keys()):
+            app.logger.info(f'migrating key:{key} of value {self.storage[key]}')
             address = self.maps_to(key)
             shard_id = self.shard_map[address]
             if self.shard_id != shard_id:
@@ -147,7 +149,7 @@ class State():
                     if self.storage[key]['method'] != 'DELETE':
                         response = Request.send_put(address, key, self.storage[key]['value'])
                     else:
-                        response = Request.send_delete(address, key)
+                        response = Request.send_delete(address, key, {})
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
         #app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')

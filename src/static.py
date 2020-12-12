@@ -60,6 +60,21 @@ class Entry():
         return vc
 
     @staticmethod
+    def compare_entries(entry1, entry2):
+        if len(entry1) == 0: return entry2
+        if len(entry2) == 0: return entry1
+        result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
+        if result == constants.CONCURRENT:
+            if entry1['created_at'] > entry2['created_at']:
+                return constants.GREATER_THAN
+            elif entry1['created_at'] < entry2['created_at']:
+                return constants.LESS_THAN
+            else:
+                return constants.GREATER_THAN if entry1['address'] > entry2['address'] else constants.LESS_THAN
+        else:
+            return result
+
+    @staticmethod
     def max_of_entries(entry1, entry2):
         if len(entry1) == 0: return entry2
         if len(entry2) == 0: return entry1
@@ -105,16 +120,16 @@ class Request():
         finally: return response
     
     @staticmethod
-    def send_delete(address, key):
+    def send_delete(address, key, causal_context={}):
         response = None
-        try: response = requests.delete(f'http://{address}/kvs/keys/{key}', timeout=2)
+        try: response = requests.delete(f'http://{address}/kvs/keys/{key}', json = {'causal-context':causal_context}, timeout=2)
         except: response = Http_Error(500)
         finally: return response
 
     @staticmethod
-    def send_delete_endpoint(address, key, entry):
+    def send_delete_endpoint(address, key, entry, causal_context={}):
         response = None
-        try: response = requests.delete(f'http://{address}/kvs/{key}', timeout=2, json = entry)
+        try: response = requests.delete(f'http://{address}/kvs/{key}',json = {'causal-context':causal_context, 'entry':entry}, timeout=2)
         except: response = Http_Error(500)
         finally: return response
     
