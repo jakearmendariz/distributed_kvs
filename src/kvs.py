@@ -115,6 +115,8 @@ def delete(key):
             address = state.view[shard_id*state.repl_factor + i]
             response = Request.send_delete(address, key, causal_context)
             if response.status_code != 500:
-                return response.json(), response.status_code
+                payload = response.json()
+                payload['address'] = address
+                return payload, response.status_code
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
 

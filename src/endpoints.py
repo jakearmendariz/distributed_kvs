@@ -48,6 +48,7 @@ Setting values
 def getter(key):
     causal_context = request.get_json().get('causal-context', {})
     logical = causal_context.get('logical', 0)
+    app.logger.info(f'')
     if logical > kvs.state.logical and key not in causal_context:
         return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     elif logical < kvs.state.logical:
@@ -81,7 +82,7 @@ def putter(key):
     # For every key, update the value with the current causal context
     for cc_key in causal_context.keys():
         if cc_key == 'logical': continue
-        if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.GREATER_THAN:
+        if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.LESS_THAN:
             kvs.state.logical += 1
             kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
     kvs.state.storage[key] = entry
@@ -101,7 +102,7 @@ def deleter(key):
     # For every key, update the value with the current causal context
     for cc_key in causal_context.keys():
         if cc_key == 'logical': continue
-        if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.GREATER_THAN:
+        if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.LESS_THAN:
             kvs.state.logical += 1
             kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
     if in_storage:

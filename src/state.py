@@ -45,33 +45,11 @@ class State():
         self.vector_clock = {address:0 for address in self.local_view}
         self.logical = 0
         # ask other nodes in shard for their values upon startup
-        # self.start_up()
         self.queue = {address:{} for address in self.local_view}
 
     def new_vector_clock(self):
         return {address:0 for address in self.local_view}
-        
-    def start_up(self):
-        # Upon startup contact all other replicas in the cluster and appropriate the most up-to-date store and VC
-        # by keeping a running max of the VC's that you encounter as you go
-        for address in self.replicas:
-                update = Request.send_get_update(address)
-                if update.status_code == 500:
-                    #app.logger.info(f'{address} is down')
-                    continue
-                update = update.json()
-                version = Entry.compare_vector_clocks(self.vector_clock, update['vector_clock'])
-                if version == constants.LESS_THAN:
-                    self.vector_clock = update['vector_clock']
-                    self.storage = update['store']
-                elif version == constants.GREATER_THAN:
-                    # TODO send the values
-                    pass
-                elif version == constants.CONCURRENT:
-                    #TODO find the leader, solve for difference
-                    pass
     
-
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     entry functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -144,6 +122,7 @@ class State():
                     self.key_count -= 1
                 del self.storage[key]
             else:
+                self.storage[key]['vector_clock'] = self.new_vector_clock()
                 for address in self.replicas:
                     response = None
                     if self.storage[key]['method'] != 'DELETE':
@@ -152,7 +131,7 @@ class State():
                         response = Request.send_delete(address, key, {})
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
-        #app.logger.info(f'Key migration completes. shard_id:{self.shard_id}, view:{self.view}, local_view:{self.local_view}')
+        app.logger.info(f'Key migration complete, key_count:{self.key_count}')
         
     # Sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value, causal_context={}):
@@ -160,9 +139,9 @@ class State():
             address = self.view[(shard_id-1)*self.repl_factor + i]
             response = Request.send_put(address, key, value, causal_context)
             if response.status_code != 500:
-                json_payload = response.json()
-                json_payload['address'] = address
-                return json_payload, response.status_code
+                payload = response.json()
+                payload['address'] = address
+                return payload, response.status_code
         # unreachable by TA guarentee at least one node will be available in every shard
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
     

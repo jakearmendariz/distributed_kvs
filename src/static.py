@@ -61,8 +61,8 @@ class Entry():
 
     @staticmethod
     def compare_entries(entry1, entry2):
-        if len(entry1) == 0: return entry2
-        if len(entry2) == 0: return entry1
+        if len(entry1) == 0: return constants.GREATER_THAN
+        if len(entry2) == 0: return constants.LESS_THAN
         result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
         if result == constants.CONCURRENT:
             if entry1['created_at'] > entry2['created_at']:
@@ -88,13 +88,10 @@ class Entry():
             else:
                 entry =  entry1 if entry1['address'] > entry2['address'] else entry2
             entry['vector_clock'] = Entry.vc_pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
-            entry['created_at'] = int(time.time())
             return entry
         elif result == constants.LESS_THAN:
-            entry2['created_at'] = int(time.time())
             return entry2
         elif result == constants.GREATER_THAN: # greater than
-            entry1['created_at'] = int(time.time())
             return entry1
         else: # equal so entry1 and entry2 should have the same value
             return entry1
