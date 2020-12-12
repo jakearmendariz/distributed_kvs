@@ -30,6 +30,9 @@ class Entry():
     
     @staticmethod
     def compare_vector_clocks(vc1, vc2):
+        if len(vc1) == 0 and len(vc2) == 0: return constants.EQUAL
+        elif len(vc1) == 0: return constants.LESS_THAN
+        elif len(vc2) == 0: return constants.GREATER_THAN
         vc1_flag = vc2_flag = False
 
         for x in vc1.keys():
@@ -37,6 +40,8 @@ class Entry():
                 vc2_flag = True
             elif vc1[x] > vc2[x]:
                 vc1_flag = True
+        if len(vc1) > len(vc2): vc1_flag = True
+        if len(vc1) < len(vc2): vc2_flag = True 
         
         if vc1_flag and not vc2_flag:
             return constants.GREATER_THAN
@@ -56,6 +61,8 @@ class Entry():
 
     @staticmethod
     def max_of_entries(entry1, entry2):
+        if len(entry1) == 0: return entry2
+        if len(entry2) == 0: return entry1
         result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
         if result == constants.CONCURRENT:
             entry = None
@@ -112,9 +119,9 @@ class Request():
         finally: return response
     
     @staticmethod
-    def send_put_endpoint(address, key, entry):
+    def send_put_endpoint(address, key, entry, causal_context={}):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/{key}', json = entry, timeout=2, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/{key}', json = {'entry':entry,'causal-context':causal_context}, timeout=2, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
     

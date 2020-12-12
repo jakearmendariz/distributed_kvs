@@ -177,6 +177,13 @@ class TestHW3(unittest.TestCase):
             key_count[shard_id] += 1
         else:
             key_count[shard_id] = 1
+
+    def get_causal_context(self, response, pos):
+        if response.get('causal-context', {}) == {}:
+            print(f"\n\nCAUSAL CONTEXT IS EMPTY AT {pos}")
+        else:
+            print(f"\n\nNOT EMPTY AT {pos}")
+        return response.get('causal-context', {})
                 
     def test_network_partition_2(self):
             # test causal consistency
@@ -205,12 +212,16 @@ class TestHW3(unittest.TestCase):
 
             # initialize variables a and b
             client = Client(causal_context_flag=True,print_response=print_response)
-            client.putKey("a","init a",port1)
-            client.putKey("b","init b",port2)
+            response = client.putKey("a","init a",port1)
+            self.get_causal_context(response, 'put a')
+            response = client.putKey("b","init b",port2)
+            self.get_causal_context(response, 'put b')
             time.sleep(5)
             response = client.getKey("a",port2)
             self.assertEqual(response["value"],"init a")
+            self.get_causal_context(response, 'get a')
             response = client.getKey("b",port1)
+            self.get_causal_context(response, 'get b')
             self.assertEqual(response["value"],"init b")
 
             # create network partition
@@ -220,22 +231,29 @@ class TestHW3(unittest.TestCase):
             # Alice writes a="Bob smells" to node1
             a = "Bob smells"
             response = alice.putKey("a",a,port1)
+            self.get_causal_context(response, 'ALICE PUT a bobsmells')
             self.assertEqual_helper(response,updateResponse_Success)
 
             # Bob reads a from node1 and writes b="Fuck you Alice" to node2
             b = "Fuck you Alice"
             response = bob.getKey("a",port1)
+            self.get_causal_context(response, 'BOB GET a bobsmells')
             self.assertEqual(response["value"],a)
 
             response = bob.putKey("b",b,port2)
+            self.get_causal_context(response, 'BOB PUT a fualice')
             self.assertEqual_helper(response,updateResponse_Success)
-
+            
             # Carol reads b from node2
             response = carol.getKey("b",port2)
+            self.get_causal_context(response, 'CAROLD GET b')
             self.assertEqual(response["value"],b)
+            print(f'CAROL CONTEXT:{carol.causal_context}')
 
             # Carol reads a from node2 and gets NACK or "Bob smells"
+            # BREAKING CAUSAL CONSISTENCY HERE BECAUSE CAROL READ AN EFFECT WITHOUT A CAUSE
             response = carol.getKey("a",port2)
+            self.get_causal_context(response, 'CAROL GET a')
             self.assertTrue(response["status_code"] in [200,400])
             if response["status_code"] == 400: # nack
                 self.assertEqual(response["error"],"Unable to satisfy request")

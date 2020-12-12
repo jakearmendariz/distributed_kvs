@@ -6,6 +6,7 @@ import requests
 from state import State
 from static import Request, Http_Error, Entry
 import time
+import constants
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 view change
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -48,6 +49,14 @@ Setting values
 def getter(key):
     causal_context = request.get_json()['causal-context']
     app.logger.info(f'endpoints/causal_context:{causal_context}\n\n')
+
+    # if the client is in the future of us, return 400
+    if key not in causal_context and key in kvs.state.storage:
+        for cc_key in causal_context:
+            causal = Entry.compare_vector_clocks(causal_context[cc_key]['vector_clock'], kvs.state.storage.get(cc_key, {}).get('vector_clock', {}))
+            if causal == constants.GREATER_THAN or causal == constants.CONCURRENT:
+                app.logger.info(f'key:{cc_key}:{causal_context[cc_key]} is farther in the future')
+                return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
         # Get the max of the causal context or a newer entry in storage
@@ -73,7 +82,12 @@ def putter(key):
     if not replace: kvs.state.key_count += 1
     message = "Updated successfully" if replace else "Added successfully"
     status_code = 200 if replace else 201
-    entry = request.get_json()
+    data = request.get_json()
+    entry = data['entry']
+    causal_context = data['causal-context']
+    # For every key, update the value with the current causal context
+    for key in causal_context:
+        kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage.get(key, {}), causal_context[key])
     kvs.state.storage[key] = entry
     return json.dumps({"message": message, "replaced": replace}), status_code
 

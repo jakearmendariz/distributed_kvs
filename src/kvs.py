@@ -70,14 +70,14 @@ def put(key):
         causal_context[key] = entry
         # forward update to every replica
         for address in state.replicas:
-            response = Request.send_put_endpoint(address, key, entry)
+            response = Request.send_put_endpoint(address, key, entry, causal_context)
             status_code = response.status_code
             if status_code == 500:
                 state.queue[address][key] = entry
             else:
                 state.vector_clock[address] += 1
         # save on local, return causal context to client
-        response = Request.send_put_endpoint(state.address, key, entry)
+        response = Request.send_put_endpoint(state.address, key, entry, causal_context)
         payload = response.json()
         payload['causal-context'] = causal_context
         payload['causal-context'][key] = entry
