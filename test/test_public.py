@@ -115,7 +115,7 @@ def disconnectFromNetwork(subnetName, instanceName):
 ################################# Unit Test Class ############################################################
 
 extra_credit = True # this feature is WIP
-print_response = True
+print_response = False
 
 class TestHW3(unittest.TestCase):
     buildDockerImage()
@@ -185,7 +185,7 @@ class TestHW3(unittest.TestCase):
 
 
     def gossip_helper(self,shard_count,nodes,ins):
-        client = Client(causal_context_flag=True,print_response=print_response)
+        client = Client(causal_context_flag=False,print_response=print_response)
 
         node_count = len(nodes)
 
@@ -315,13 +315,9 @@ class TestHW3(unittest.TestCase):
             self.assertEqual(key_count,key_counts0[shard_id])
 
         port = old_ins[0]["host_port"]
-        print(new_view)
-        print(new_repl_factor)
-        print(port)
         response = client.viewChange(new_view,new_repl_factor,port)
-        print(response)
         key_counts1 = self.view_change_response_helper(response,new_nodes,new_shard_count)
-        print(f'\n\nkey_counts1:{key_counts1}')
+        print(key_counts1)
 
         time.sleep(5)
         port = new_ins[0]["host_port"]
@@ -338,8 +334,7 @@ class TestHW3(unittest.TestCase):
         for in_ in new_ins:
             response = client.keyCount(in_["host_port"])
             key_count, shard_id = self.key_count_helper(response)
-            print(f'shard:{shard_id}, key_count:{key_count}')
-            # self.assertEqual(key_count,key_counts1[shard_id])
+            self.assertEqual(key_count,key_counts1[shard_id])
 
         for i in range(keys):
             key = "test_view_change_%d"%i
