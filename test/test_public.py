@@ -115,7 +115,7 @@ def disconnectFromNetwork(subnetName, instanceName):
 ################################# Unit Test Class ############################################################
 
 extra_credit = True # this feature is WIP
-print_response = False
+print_response = True
 
 class TestHW3(unittest.TestCase):
     buildDockerImage()

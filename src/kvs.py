@@ -31,7 +31,7 @@ def get(key):
     data = request.get_json()
     if data == None: data = {}
     causal_context = data.get('causal-context', {})
-    app.logger.info(f'GET keys/kvs/causal_context:{causal_context}\n\n')
+    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     if shard_id == state.shard_id:
         response = Request.send_get(state.address, key, causal_context)
         payload = response.json()
@@ -54,6 +54,7 @@ def get(key):
 def put(key):
     data = request.get_json()
     causal_context = data.get('causal-context', {})
+    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     if 'value' not in data:
         return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
     if len(key) > 50:
@@ -64,7 +65,7 @@ def put(key):
     if shard_id == state.shard_id:
         # if in storage update, else create
         entry = state.update_put_entry(data['value'], state.storage[key]) if key in state.storage else state.build_put_entry(data['value'])
-        causal_context[key] = entry
+        causal_context['queue'][key] = entry
         # forward update to every replica
         for address in state.replicas:
             response = Request.send_put_endpoint(address, key, entry, causal_context)
@@ -73,12 +74,12 @@ def put(key):
                 state.queue[address][key] = entry
             else:
                 state.vector_clock[address] += 1
-                causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) < state.logical else causal_context.get('logical', 0) + 1
+                causal_context['logical'] = state.logical+1 if causal_context['logical'] < state.logical else causal_context['logical'] + 1
         # save on local, return causal context to client
         response = Request.send_put_endpoint(state.address, key, entry, causal_context)
         payload = response.json()
         payload['causal-context'] = causal_context
-        payload['causal-context'][key] = entry
+        payload['causal-context']['queue'][key] = entry
         return payload, response.status_code
     else:
         # try sending to every node inside of expected shard, first successful quit
@@ -91,6 +92,7 @@ def delete(key):
     shard_id = state.shard_map[address]  
     data = request.get_json()
     causal_context = data.get('causal-context', {})
+    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     if shard_id == state.shard_id:
         entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
         # Send entry to friends
@@ -104,7 +106,7 @@ def delete(key):
                     # increments by 1 or matches with the internal state
                     causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) < state.logical else causal_context['logical'] + 1
         # Delete from personal storage
-        causal_context[key] = entry
+        causal_context['queue'][key] = entry
         response = Request.send_delete_endpoint(state.address, key, entry, causal_context)
         if response.status_code == 500:
             return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503

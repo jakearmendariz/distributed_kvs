@@ -24,7 +24,7 @@ def view_change():
         shard_id = response.json()["shard-id"]
         key_count = response.json()['key-count']
         if shard_id in shards:
-            key_count = max(key_count, shards[shard_id]['key-count'])
+            key_count = min(key_count, shards[shard_id]['key-count'])
             shards[shard_id]['key-count'] = key_count
         else:
             replicas = [address for address in kvs.state.view if shard_id == str(kvs.state.shard_map[address])]
@@ -46,24 +46,25 @@ Setting values
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/<key>', methods=['GET'])
 def getter(key):
-    causal_context = request.get_json().get('causal-context', {})
-    logical = causal_context.get('logical', 0)
-    app.logger.info(f'')
+    causal_context = request.get_json().get('causal-context', {'queue':{}, 'logical':0})
+    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    logical = causal_context['logical']
+    queue = causal_context['queue']
     if logical > kvs.state.logical and key not in causal_context:
         return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     elif logical < kvs.state.logical:
         causal_context['logical'] = kvs.state.logical
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
-        if key in causal_context: entry = Entry.max_of_entries(entry, causal_context[key])
-        causal_context[key] = entry
+        if key in queue: entry = Entry.max_of_entries(entry, queue[key])
+        causal_context['queue'][key] = entry
         if entry['method'] == 'DELETE':
             return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
         else:
             return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": entry['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200 
     else:
-        if key in causal_context and causal_context[key]['method'] !='DELETE':
-            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": causal_context[key]['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200,
+        if key in queue and queue[key]['method'] !='DELETE':
+            return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": queue[key]['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200,
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
         
     
@@ -78,12 +79,12 @@ def putter(key):
     status_code = 200 if replace else 201
     data = request.get_json()
     entry = data['entry']
-    causal_context = data['causal-context']
+    causal_context = data['causal-context']['queue']
     # For every key, update the value with the current causal context
     for cc_key in causal_context.keys():
-        if cc_key == 'logical': continue
         if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.LESS_THAN:
             kvs.state.logical += 1
+            if key not in kvs.state.storage: kvs.state.key_count += 1
             kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
     kvs.state.storage[key] = entry
     return json.dumps({"message": message, "replaced": replace}), status_code
@@ -97,13 +98,14 @@ def deleter(key):
     
     data = request.get_json()
     kvs.state.storage[key] = data['entry']
-    causal_context = data['causal-context']
+    causal_context = request.get_json().get('causal-context', {'queue':{}, 'logical':0})
+    causal_context = data['causal-context']['queue']
 
     # For every key, update the value with the current causal context
     for cc_key in causal_context.keys():
-        if cc_key == 'logical': continue
         if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.LESS_THAN:
             kvs.state.logical += 1
+            if cc_key not in kvs.state.storage: kvs.state.key_count += 1
             kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
     if in_storage:
         kvs.state.key_count -= 1

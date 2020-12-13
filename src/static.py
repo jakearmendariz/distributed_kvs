@@ -110,28 +110,28 @@ class Request():
         finally: return response
     
     @staticmethod
-    def send_put(address, key, value, causal_context={}):
+    def send_put(address, key, value, causal_context={'queue':{}, 'logical':0}):
         response = None
         try: response = requests.put(f'http://{address}/kvs/keys/{key}', json = {'value':value, 'causal-context':causal_context}, timeout=2, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
     
     @staticmethod
-    def send_delete(address, key, causal_context={}):
+    def send_delete(address, key, causal_context={'queue':{}, 'logical':0}):
         response = None
         try: response = requests.delete(f'http://{address}/kvs/keys/{key}', json = {'causal-context':causal_context}, timeout=2)
         except: response = Http_Error(500)
         finally: return response
 
     @staticmethod
-    def send_delete_endpoint(address, key, entry, causal_context={}):
+    def send_delete_endpoint(address, key, entry, causal_context={'queue':{}, 'logical':0}):
         response = None
         try: response = requests.delete(f'http://{address}/kvs/{key}',json = {'causal-context':causal_context, 'entry':entry}, timeout=2)
         except: response = Http_Error(500)
         finally: return response
     
     @staticmethod
-    def send_put_endpoint(address, key, entry, causal_context={}):
+    def send_put_endpoint(address, key, entry, causal_context={'queue':{}, 'logical':0}):
         response = None
         try: response = requests.put(f'http://{address}/kvs/{key}', json = {'entry':entry,'causal-context':causal_context}, timeout=2, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)

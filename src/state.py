@@ -82,7 +82,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = True):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
@@ -126,13 +126,13 @@ class State():
                     if self.storage[key]['method'] != 'DELETE':
                         response = Request.send_put(address, key, self.storage[key]['value'])
                     else:
-                        response = Request.send_delete(address, key, {})
+                        response = Request.send_delete(address, key, {'queue':{}, 'logical':0})
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
         app.logger.info(f'Key migration complete, key_count:{self.key_count}')
         
     # Sends a value to a shard, first successful request wins
-    def put_to_shard(self, shard_id, key, value, causal_context={}):
+    def put_to_shard(self, shard_id, key, value, causal_context={'queue':{}, 'logical':0}):
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
             response = Request.send_put(address, key, value, causal_context)
