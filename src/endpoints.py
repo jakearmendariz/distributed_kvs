@@ -24,7 +24,7 @@ def view_change():
         shard_id = response.json()["shard-id"]
         key_count = response.json()['key-count']
         if shard_id in shards:
-            key_count = min(key_count, shards[shard_id]['key-count'])
+            key_count = max(key_count, shards[shard_id]['key-count'])
             shards[shard_id]['key-count'] = key_count
         else:
             replicas = [address for address in kvs.state.view if shard_id == str(kvs.state.shard_map[address])]

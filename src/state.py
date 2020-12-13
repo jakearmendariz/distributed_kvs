@@ -14,6 +14,7 @@ import constants
 import time
 import json
 from static import Request, Http_Error, Entry
+from concurrent.futures import (ThreadPoolExecutor, wait)
 
 class State():
     def __init__(self): 
@@ -92,12 +93,9 @@ class State():
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
-            threads = []
-            for address in addresses:
-                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-                threads[-1].start()
-            for thread in threads:
-                thread.join()
+            executor = ThreadPoolExecutor()
+            wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
+        app.logger.info('Broadcast complete')
     
     def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
