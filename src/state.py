@@ -82,7 +82,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = True):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
