@@ -1,16 +1,6 @@
 # Assignment 4
 Team: Dorothy, Joshua, Jake, Julian
 
-
-# TODO
-1. Gossip
-2. Health checks
-3. causal context
-    - send causual context to client
-    - limit size of queue, save as constant value, play with number
-    - send vector clocks on every node with it
-4. ALL OF PROTOCOL
-
 # Design
 ## Goal
 Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, your team’s key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
@@ -20,6 +10,7 @@ Implement a distributed key-value store that is partition-tolerant, available, a
 Every server is represented by a combined state that includes:
 - view: list of addresses for every server
 - local_view: list of addresses in the shard
+- replicas: list of addressses - one's own address
 - shard_id: personal shard_id
 - shard_map: a mapping of address to shard_id
 - virtual_map: a mapping of all virtual node locations and a map to their correspodning node address
@@ -34,7 +25,7 @@ An entry is greater than, or further in the future of another iff its vector clo
 
 ### Causal Context
 Every client can maintain a causual context that will display their most recent operation. The operation will be saved as a entry plus a key so
-`{'key':key, 'value':value, 'vector_clock':vc_of_recent_request, 'method':GET or PUT or DELETE, 'created_at:'timestamp'}`
+`'key':{'value':value, 'vector_clock':vc_of_recent_request, 'method':GET or PUT or DELETE, 'created_at:'timestamp'}`
 
 ### Consistent Hashing
 To distribute values across shards we will use consistent hashing. Every node will have multiple virtual nodes represented by hash values, when a key hashes in the range of an address, it will be sent to that address's shard and be replicated in every node
@@ -70,25 +61,11 @@ history is limited
 
 
 ### PUT		
-1. causal context is emtpy
-    - store the entry, return it as causal context
-2. casual context is in the past of server
-    - store the entry, return it as causal context
-3. casual context is in the future/concurrent and most recent request displays the same key
-    - store clients request in the storage, with pairwise max of client's and servers vector_clocks
-4. casual context is in the future/concurrent and is talking about a different key.
-    - store clients request in the storage, with pairwise max of client's and servers vector_clocks
+Save the request, return as causal context
 
 
 ### DELETE
-1. causal context is emtpy
-    - store the entry as a deletion, return it as causal context
-2. casual context is in the past of server
-    - store the entry as a deletion, return it as causal context
-3. casual context is in the future/concurrent and most recent request displays the same key
-    - store clients request in the storage as deletion, with pairwise max of client's and servers vector_clocks
-4. casual context is in the future/concurrent and is talking about a different key.
-    - store clients request in the storage as deletion, with pairwise max of client's and servers vector_clocks
+Complete the request, return as causal context
 
 ### View Change
 - The view change implementation remains mostly the same in a replicated system as the previously scalable and sharded system in assignment3. The key difference is values are sent (and deleted) iff the shard_id changed, their address owner no longer matters. By the same logic, when a shard adds new addresses, the addresses within a shard must share all of their values with the other nodes that are now responsible for new kvs.

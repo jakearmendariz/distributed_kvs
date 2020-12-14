@@ -26,10 +26,7 @@ def gossip_endpoint():
     queue = request.get_json()['queue']
     for key in queue.keys():
         if key in kvs.state.storage:
-            try:
-                kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage[key], queue[key])
-            except:
-                app.logger.info(f'COMPARING {kvs.state.storage[key]} and {queue[key]}')
+            kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage[key], queue[key])
         else:
             kvs.state.storage[key] = queue[key]
     return json.dumps({'message':'gossip complete'}), 200
