@@ -56,9 +56,9 @@ def put(key):
     causal_context = data.get('causal-context', {})
     if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     if 'value' not in data:
-        return json.dumps({"error":"Value is missing","message":"Error in PUT"}), 400
+        return json.dumps({"error":"Value is missing","message":"Error in PUT","causal-context":causal_context}), 400
     if len(key) > 50:
-        return json.dumps({"error":"Key is too long","message":"Error in PUT"}), 400
+        return json.dumps({"error":"Key is too long","message":"Error in PUT","causal-context":causal_context}), 400
 
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
