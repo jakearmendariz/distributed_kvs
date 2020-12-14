@@ -74,7 +74,7 @@ def put(key):
                 state.queue[address][key] = entry
             else:
                 state.vector_clock[address] += 1
-                causal_context['logical'] = state.logical+1 if causal_context['logical'] < state.logical else causal_context['logical'] + 1
+                causal_context['logical'] = state.logical+1 if causal_context['logical'] <= state.logical else causal_context['logical']
         # save on local, return causal context to client
         response = Request.send_put_endpoint(state.address, key, entry, causal_context)
         payload = response.json()
@@ -104,7 +104,7 @@ def delete(key):
                 else:
                     state.vector_clock[replica_adddress] += 1
                     # increments by 1 or matches with the internal state
-                    causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) < state.logical else causal_context['logical'] + 1
+                    causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) <= state.logical else causal_context['logical']
         # Delete from personal storage
         causal_context['queue'][key] = entry
         response = Request.send_delete_endpoint(state.address, key, entry, causal_context)
