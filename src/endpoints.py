@@ -114,7 +114,7 @@ def deleter(key):
     else:
         if key in causal_context and causal_context[key]['method'] != 'DELETE':
             return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
-        return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE", "address":kvs.state.address}), 404
+        return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE"}), 404
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

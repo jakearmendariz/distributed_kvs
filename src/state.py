@@ -82,7 +82,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor, multi_threaded = True):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
@@ -93,7 +93,12 @@ class State():
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
-            pass
+            threads = []
+            for address in addresses:
+                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+                threads[-1].start()
+            for thread in threads:
+                thread.join()
             """
             Hello, if you are trying to work on the threading give it a shot, 
             everything I tried breaks :( I changed the virtual count to try and make the single threaded
