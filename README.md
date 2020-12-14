@@ -30,35 +30,17 @@ Every client can maintain a causual context that will display their most recent 
 ### Consistent Hashing
 To distribute values across shards we will use consistent hashing. Every node will have multiple virtual nodes represented by hash values, when a key hashes in the range of an address, it will be sent to that address's shard and be replicated in every node
 
-## Types of Requests
-### GET
-NOTE: To see if a key exists in storage, a server must check inside dictionary and verify the entry.method == 'PUT'. If most recent entry is 'DELETE', then 404
+# Overview
+Every node in the server will be initlize it's own view, replicas and shard and virtual map upon creation. Each server is equal to each other in its role as a replica and shard. For all key value requests (PUT, GET, DELETE) the recieving node will map the key to an address by hashing it, then searching through the sorted virtual_map to find the storage address. If it belongs to another shard we will forward the request to `/kvs/keys/key`. But if the key maps to it's own shard, then the node will build an entry for the action (delete or put) and the node will broadcast the entry and the requests causal context to `kvs/key` to each replica inside of the shard, at this endpoint the node will store, delete or retrieve the key:entry pair. If any of the broadcasts fail due to a partition or timeout then we will store the key:entry pair and return it to the client, otherwise there is no need for causal context.
 
-1. causal context is emtpy
-    - return the entry associated with key or 404 error
-2. casual context is in the past of server
-    - return the entry in storage
-3. casual context is in the future/concurrent and most recent request displays the same key
-    - compare server's entry to the causal context, return the greater of the two entries
-4. casual context is in the future/concurrent and is talking about a different key.
-    - server cannot handle request, it doesn't matter if we it does not know what happened in the future `{'error': 'Unable to satisfy request', 'message': 'Error in GET'}, 400`
-## Note Casual context should maintain most recent vector clock of each server it interacts with. THUS we can know if a server is in the future and out of causal context ==> 400 error
-Vector clocks are better because then we can see that self has an outdated view of the server the client was interacting with ==> possible causal consistency leak
-
-causal context from client
-A 1, 1, 0
-B 2, 2, 0
-
-I am talking to B, and I ask for a key. Because B is ahead then we can return our value
-
-A 3, 1, 0
-B 2, 2, 0
-Return 400
-
-Causal context = {A:vc history {'key'entry1, 'key2':'entry2}} 
-PUT, DELETE, I will udpate the clients VC
-history is limited
-
+## GET
+Get requests are the only request that will not be forwarded to replicas. Upon recieving a get request at an endpoint, the node will check the causal context for the key and its own storage. 
+1. if the causal context is empty (or in the past of node) and storage has the key:entry pair
+    - return entry
+2. if causal context contains the key
+    - compare each entry, the entry farter in future overwrites both and is returned to the client
+3. if causal context has a logical clock farther in the future
+    - return 400 error, it is farther in the future and we don't have the key for causal context. Thus we reject the request and wait for partition to heal or a client to provide more recent context.
 
 ### PUT		
 Save the request, return as causal context
@@ -94,6 +76,5 @@ Every X miliseconds a background process will check the queue of every local_add
 ### Receiving gossip:
 Gossip is received in one request, but every entry must be examined individually to decide which entry to save/remove from storage.
 <br><br>
-Loop through every key and entry in the array.<br>
-If an entry is in the future, then use it's value. <br>
-If they are concurrent, find pairwise max and use the timestamp to dictate the future.
+Loop through every key and entry in the dictionary.<br>
+Find the max of storage entry and the gossip entry, store that value

@@ -98,7 +98,8 @@ def deleter(key):
     
     data = request.get_json()
     kvs.state.storage[key] = data['entry']
-    causal_context = request.get_json().get('causal-context', {'queue':{}, 'logical':0})
+    causal_context = request.get_json().get('causal-context', {})
+    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     causal_context = data['causal-context']['queue']
 
     # For every key, update the value with the current causal context
@@ -111,6 +112,8 @@ def deleter(key):
         kvs.state.key_count -= 1
         return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
     else:
+        if key in causal_context and causal_context[key]['method'] != 'DELETE':
+            return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
         return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE", "address":kvs.state.address}), 404
 
 
