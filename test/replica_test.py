@@ -182,202 +182,202 @@ class TestHW3(unittest.TestCase):
 		return key_counts, total_keys
 
 	# (add, update, get, key-count, delete, key-count)'s
-# 	def test_1(self):
-# 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-# 		keys = 20
-# 		for i in range(keys):
-# 			id1,id2 = 1,2
-# 			if i%2 == 0:
-# 				id1,id2 = 2,1
+	def test_1(self):
+		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+		keys = 20
+		for i in range(keys):
+			id1,id2 = 1,2
+			if i%2 == 0:
+				id1,id2 = 2,1
 
-# 			key = "test_1_%d"%i
-# 			value = "a friendly string %d"%i
+			key = "test_1_%d"%i
+			value = "a friendly string %d"%i
 
-# 			# add
-# 			result = client.putKey(key,value,nodes[id1]["port"])
-# 			self.assertEqual_helper(result,addResponse_Success)
-# 			# update
-# 			result = client.putKey(key,value,nodes[id1]["port"])
-# 			self.assertEqual_helper(result,updateResponse_Success)
-# 			# get
-# 			result = client.getKey(key,nodes[id2]["port"])
-# 			expected = getResponse_Success.copy()
-# 			expected["value"] = value
-# 			self.check_node_id(result,id2,2)
-# 			self.assertEqual_helper(result,expected)
-# 			# key-count
-# 			key_counts, total = self.get_key_counts(2)
-# 			self.assertEqual(total, 1)
-# 			# delete
-# 			result = client.deleteKey(key, nodes[id2]["port"])
-# 			self.check_node_id(result,id2,2)
-# 			self.assertEqual_helper(result, delResponse_Success)
-# 			# key-count
-# 			key_counts, total = self.get_key_counts(2)
-# 			self.assertEqual(total, 0)
-# 			print(f'\ncompleted {key} round\n')
+			# add
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,addResponse_Success)
+			# update
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,updateResponse_Success)
+			# get
+			result = client.getKey(key,nodes[id2]["port"])
+			expected = getResponse_Success.copy()
+			expected["value"] = value
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result,expected)
+			# key-count
+			key_counts, total = self.get_key_counts(2)
+			self.assertEqual(total, 1)
+			# delete
+			result = client.deleteKey(key, nodes[id2]["port"])
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result, delResponse_Success)
+			# key-count
+			key_counts, total = self.get_key_counts(2)
+			self.assertEqual(total, 0)
+			print(f'\ncompleted {key} round\n')
 
-# 	# (two replicas, check to see if they update
-# 	def test_2(self):
-# 		repl_factor = 2
-# 		result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)
-# 		key_counts, total = self.get_key_counts(4)
-# 		self.assertEqual(total, 0)
-# 		keys = 50
-# 		for i in range(keys):
-# 			id1,id2 = 1,2
-# 			if i%2 == 0:
-# 				id1,id2 = 2,1
+	# (two replicas, check to see if they update
+	def test_2(self):
+		repl_factor = 2
+		result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)
+		key_counts, total = self.get_key_counts(4)
+		self.assertEqual(total, 0)
+		keys = 50
+		for i in range(keys):
+			id1,id2 = 1,2
+			if i%2 == 0:
+				id1,id2 = 2,1
 
-# 			key = "test_1_%d"%i
-# 			value = "a friendly string %d"%i
+			key = "test_1_%d"%i
+			value = "a friendly string %d"%i
 
-# 			# add
-# 			result = client.putKey(key,value,nodes[id1]["port"])
-# 			self.assertEqual_helper(result,addResponse_Success)
-# 			# get
-# 			result = client.getKey(key,nodes[id2]["port"])
-# 			expected = getResponse_Success.copy()
-# 			# update
-# 			result = client.putKey(key,value,nodes[id1]["port"])
-# 			self.assertEqual_helper(result,updateResponse_Success)
-# 			# get
-# 			result = client.getKey(key,nodes[id2+1]["port"])
-# 			expected = getResponse_Success.copy()
-# 			expected["value"] = value
-# 			self.check_node_id(result,id2,2)
-# 			self.assertEqual_helper(result,expected)
-# 			# key-count
-# 			key_counts, total = self.get_key_counts(4)
-# 			self.assertEqual(total, repl_factor)
-# 			# delete
-# 			result = client.deleteKey(key, nodes[id2]["port"])
-# 			self.check_node_id(result,id2,2)
-# 			self.assertEqual_helper(result, delResponse_Success)
-# 			# key-count
-# 			key_counts, total = self.get_key_counts(4)
-# 			self.assertEqual(total, 0)
-# 			print(f'\ncompleted {key} round\n')
+			# add
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,addResponse_Success)
+			# get
+			result = client.getKey(key,nodes[id2]["port"])
+			expected = getResponse_Success.copy()
+			# update
+			result = client.putKey(key,value,nodes[id1]["port"])
+			self.assertEqual_helper(result,updateResponse_Success)
+			# get
+			result = client.getKey(key,nodes[id2+1]["port"])
+			expected = getResponse_Success.copy()
+			expected["value"] = value
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result,expected)
+			# key-count
+			key_counts, total = self.get_key_counts(4)
+			self.assertEqual(total, repl_factor)
+			# delete
+			result = client.deleteKey(key, nodes[id2]["port"])
+			self.check_node_id(result,id2,2)
+			self.assertEqual_helper(result, delResponse_Success)
+			# key-count
+			key_counts, total = self.get_key_counts(4)
+			self.assertEqual(total, 0)
+			print(f'\ncompleted {key} round\n')
 
-# # # 	# add's, key-count, view-change, delete's, key-count
-# 	def test_3(self):
-# 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-# 		keys = 50
-# 		# add's
-# 		for i in range(keys):
-# 			id = 1
-# 			if i%2 == 0:
-# 				id = 2
-# 			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
-# 			self.assertEqual_helper(result,addResponse_Success)
+# # 	# add's, key-count, view-change, delete's, key-count
+	def test_3(self):
+		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+		keys = 50
+		# add's
+		for i in range(keys):
+			id = 1
+			if i%2 == 0:
+				id = 2
+			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
+			self.assertEqual_helper(result,addResponse_Success)
 
-# 		# key-count
-# 		key_counts1, total1 = self.get_key_counts(2)
-# 		self.assertEqual(total1, keys)
-# 		# view-change
-# 		print('VIEW CHANGE')
-# 		result = client.viewChange(build_view(0,3),nodes[1]["port"], 1)
-# 		key_counts2, total2 = self.check_view_change(result,3)
-# 		self.assertEqual(total2, keys)
-# 		print(key_counts1, "===>", key_counts2)
+		# key-count
+		key_counts1, total1 = self.get_key_counts(2)
+		self.assertEqual(total1, keys)
+		# view-change
+		print('VIEW CHANGE')
+		result = client.viewChange(build_view(0,3),nodes[1]["port"], 1)
+		key_counts2, total2 = self.check_view_change(result,3)
+		self.assertEqual(total2, keys)
+		print(key_counts1, "===>", key_counts2)
 
-# 		result = client.viewChange(build_view(0,2),nodes[1]["port"], 1)
-# 		key_counts3, total3 = self.check_view_change(result,2)
-# 		# self.assertEqual(total2, keys)
-# 		print(key_counts2, "===>", key_counts3)
-# 		# todo: check if shards are balanced
-# 		for i in range(keys):
-# 			id = i%3
-# 			if id == 0:
-# 				id = 3
+		result = client.viewChange(build_view(0,2),nodes[1]["port"], 1)
+		key_counts3, total3 = self.check_view_change(result,2)
+		# self.assertEqual(total2, keys)
+		print(key_counts2, "===>", key_counts3)
+		# todo: check if shards are balanced
+		for i in range(keys):
+			id = i%3
+			if id == 0:
+				id = 3
 
-# 			key = "test_2_%d"%i
-# 			result = client.deleteKey(key, nodes[id]["port"])
-# 			self.check_node_id(result,id,3)
-# 			self.assertEqual_helper(result, delResponse_Success)
-# 		# key-count
-# 		key_counts3, total3 = self.get_key_counts(3)
-# 		self.assertEqual(total3, 0)
+			key = "test_2_%d"%i
+			result = client.deleteKey(key, nodes[id]["port"])
+			self.check_node_id(result,id,3)
+			self.assertEqual_helper(result, delResponse_Success)
+		# key-count
+		key_counts3, total3 = self.get_key_counts(3)
+		self.assertEqual(total3, 0)
 	
 
-# 	def test_4(self):
-# 		result = client.viewChange(build_view(0,4),nodes[1]["port"],2)
-# 		keys = 50
-# 		# add's
-# 		for i in range(keys):
-# 			id = 1
-# 			if i%2 == 0:
-# 				id = 2
-# 			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
-# 			key_counts, _total = self.get_key_counts(4)
-# 			self.assertEqual(key_counts[0], key_counts[1])
-# 			self.assertEqual(key_counts[2], key_counts[3])
-# 			self.assertEqual_helper(result,addResponse_Success)
+	def test_4(self):
+		result = client.viewChange(build_view(0,4),nodes[1]["port"],2)
+		keys = 50
+		# add's
+		for i in range(keys):
+			id = 1
+			if i%2 == 0:
+				id = 2
+			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
+			key_counts, _total = self.get_key_counts(4)
+			self.assertEqual(key_counts[0], key_counts[1])
+			self.assertEqual(key_counts[2], key_counts[3])
+			self.assertEqual_helper(result,addResponse_Success)
 
-# 		# key-count
-# 		key_counts1, total1 = self.get_key_counts(4)
-# 		self.assertEqual(total1, keys*2)
-# 		# view-change
-# 		print('VIEW CHANGE')
-# 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+		# key-count
+		key_counts1, total1 = self.get_key_counts(4)
+		self.assertEqual(total1, keys*2)
+		# view-change
+		print('VIEW CHANGE')
+		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
 
-# 		key_counts2, total2 = self.check_view_change(result,2)
-# 		self.assertEqual(total2, keys)
-# 		print(key_counts1, "===>", key_counts2)
+		key_counts2, total2 = self.check_view_change(result,2)
+		self.assertEqual(total2, keys)
+		print(key_counts1, "===>", key_counts2)
 
-# 		result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
-# 		key_counts3, total3 = self.check_view_change(result,4)
-# 		# self.assertEqual(total2, keys)
-# 		print(key_counts2, "===>", key_counts3)
-# 		# todo: check if shards are balanced
-# 		for i in range(keys):
-# 			id = i%3
-# 			if id == 0:
-# 				id = 3
+		result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
+		key_counts3, total3 = self.check_view_change(result,4)
+		# self.assertEqual(total2, keys)
+		print(key_counts2, "===>", key_counts3)
+		# todo: check if shards are balanced
+		for i in range(keys):
+			id = i%3
+			if id == 0:
+				id = 3
 
-# 			key = "test_2_%d"%i
-# 			result = client.deleteKey(key, nodes[id]["port"])
-# 			self.check_node_id(result,id,3)
-# 			self.assertEqual_helper(result, delResponse_Success)
-# 		# key-count
-# 		key_counts3, total3 = self.get_key_counts(3)
-# 		self.assertEqual(total3, 0)
-# 	def test_5(self):
-# 		result = client.viewChange(build_view(0,1),nodes[1]["port"],1)
-# 		keys = 50
-# 		# add's
-# 		for i in range(keys):
-# 			id = 1
-# 			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
+			key = "test_2_%d"%i
+			result = client.deleteKey(key, nodes[id]["port"])
+			self.check_node_id(result,id,3)
+			self.assertEqual_helper(result, delResponse_Success)
+		# key-count
+		key_counts3, total3 = self.get_key_counts(3)
+		self.assertEqual(total3, 0)
+	def test_5(self):
+		result = client.viewChange(build_view(0,1),nodes[1]["port"],1)
+		keys = 50
+		# add's
+		for i in range(keys):
+			id = 1
+			result = client.putKey("test_2_%d"%i,"a friendly string %d"%i,nodes[id]["port"])
 
-# 		# key-count
-# 		key_counts1, total1 = self.get_key_counts(4)
-# 		self.assertEqual(total1, keys)
-# 		# view-change
-# 		# print('VIEW CHANGE')
-# 		# result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+		# key-count
+		key_counts1, total1 = self.get_key_counts(4)
+		self.assertEqual(total1, keys)
+		# view-change
+		# print('VIEW CHANGE')
+		# result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
 
-# 		# key_counts2, total2 = self.check_view_change(result,2)
-# 		# self.assertEqual(total2, keys)
-# 		# print(key_counts1, "===>", key_counts2)
+		# key_counts2, total2 = self.check_view_change(result,2)
+		# self.assertEqual(total2, keys)
+		# print(key_counts1, "===>", key_counts2)
 
-# 		result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
-# 		key_counts3, total3 = self.check_view_change(result,4)
-# 		print(key_counts3)
-# 		self.assertEqual(total3, keys)
-# 		# todo: check if shards are balanced
-# 		for i in range(keys):
-# 			id = i%3
-# 			if id == 0:
-# 				id = 3
+		result = client.viewChange(build_view(0,4),nodes[1]["port"], 2)
+		key_counts3, total3 = self.check_view_change(result,4)
+		print(key_counts3)
+		self.assertEqual(total3, keys)
+		# todo: check if shards are balanced
+		for i in range(keys):
+			id = i%3
+			if id == 0:
+				id = 3
 
-# 			key = "test_2_%d"%i
-# 			result = client.deleteKey(key, nodes[id]["port"])
-# 			self.check_node_id(result,id,3)
-# 			self.assertEqual_helper(result, delResponse_Success)
-# 		# key-count
-# 		key_counts3, total3 = self.get_key_counts(3)
-# 		self.assertEqual(total3, 0)
+			key = "test_2_%d"%i
+			result = client.deleteKey(key, nodes[id]["port"])
+			self.check_node_id(result,id,3)
+			self.assertEqual_helper(result, delResponse_Success)
+		# key-count
+		key_counts3, total3 = self.get_key_counts(3)
+		self.assertEqual(total3, 0)
 
 	def test_6(self):
 		repl_factor = 2
