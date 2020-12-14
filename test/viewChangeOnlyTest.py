@@ -56,12 +56,10 @@ getKeyCountResponse_Success = {
 def removeSubnet(subnetName):
     command = "docker network rm " + subnetName
     os.system(command)
-    time.sleep(1)
 
 def createSubnet(subnetAddress, subnetName):
     command  = "docker network create --subnet=" + subnetAddress + " " + subnetName
     os.system(command)
-    time.sleep(1)
 
 def buildDockerImage():
     command = "docker build -t kvs:4.0 ."
@@ -72,12 +70,8 @@ def stopAndRemoveAll():
     for i in range(1,nodeCount+1):
         os.system("docker stop node%d"%i)
 
-    time.sleep(1)
-
     for i in range(1,nodeCount+1):
         os.system("docker rm node%d"%i)
-
-    time.sleep(1)
 
 def runInstances(ins):
     for in_ in ins:
@@ -93,15 +87,12 @@ def runInstances(ins):
 
         os.system(cmd)
 
-    time.sleep(1)
-
     return
 
 def stopAndRemoveInstance(instanceName):
     stopCommand = "docker stop " + instanceName
     removeCommand = "docker rm " + instanceName
     os.system(stopCommand)
-    time.sleep(1)
     os.system(removeCommand)
 
 def connectToNetwork(subnetName, instanceName):
@@ -232,7 +223,6 @@ class TestHW3(unittest.TestCase):
             self.assertEqual_helper(response,updateResponse_Success)
 
         print(key_counts0)
-        time.sleep(5)
         for in_ in old_ins:
             response = client.keyCount(in_["host_port"])
             key_count, shard_id = self.key_count_helper(response)
@@ -243,7 +233,6 @@ class TestHW3(unittest.TestCase):
         key_counts1 = self.view_change_response_helper(response,new_nodes,new_shard_count)
         print(key_counts1)
 
-        time.sleep(5)
         port = new_ins[0]["host_port"]
         response = client.getShards(port)
         shard_ids = self.get_shards_helper(response,new_shard_count)
