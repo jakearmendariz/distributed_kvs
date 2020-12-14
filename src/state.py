@@ -82,7 +82,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor, multi_threaded = True):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
@@ -93,8 +93,45 @@ class State():
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
+            pass
+            """
+            Hello, if you are trying to work on the threading give it a shot, 
+            everything I tried breaks :( I changed the virtual count to try and make the single threaded
+            version working a bit faster, if you can figure it out lmk
+
+            thread.join() will join threads before they are done. If you sleep it fixes it,
+            but that obviously won't work
+
+            barrier takes to long, slower than single thread
+
+            wait(execurtor) doesn't wait :/
+
+            Here is the code I have tried so far
+            # threaded
+            threads = []
+            for address in addresses:
+                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+                threads[-1].start()
+            for thread in threads:
+                thread.join()
+
+            # barrier
+            barrier = threading.Barrier(len(addresses))
+            for address in addresses:
+                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+                threads[-1].start()
+            barrier.wait()
+            for address in addresses:
+                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+                threads[-1].start()
+            for thread in threads:
+                thread.join()
+            
+            # executor
             executor = ThreadPoolExecutor()
             wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
+            """
+           
         app.logger.info('Broadcast complete')
     
     def node_change(self, view, repl_factor):
@@ -126,12 +163,12 @@ class State():
                     if self.storage[key]['method'] != 'DELETE':
                         response = Request.send_put(address, key, self.storage[key]['value'])
                     else:
-                        response = Request.send_delete(address, key, {'queue':{}, 'logical':0})
+                        response = Request.send_delete(address, key)
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
         app.logger.info(f'Key migration complete, key_count:{self.key_count}')
         
-    # Sends a value to a shard, first successful request wins
+    # sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value, causal_context={'queue':{}, 'logical':0}):
         for i in range(self.repl_factor):
             address = self.view[(shard_id-1)*self.repl_factor + i]
@@ -142,6 +179,18 @@ class State():
                 return payload, response.status_code
         # unreachable by TA guarentee at least one node will be available in every shard
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
+
+    # deletes key:value from shard
+    def delete_from_shard(self, shard_id, key, causal_context={'queue':{}, 'logical':0}):
+        for i in range(self.repl_factor):
+            address = self.view[(shard_id-1)*self.repl_factor + i]
+            response = Request.send_delete(address, key, causal_context)
+            if response.status_code != 500:
+                payload = response.json()
+                payload['address'] = address
+                return payload, response.status_code
+        # unreachable
+        return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE", "causal-context":causal_context}), 503
     
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):

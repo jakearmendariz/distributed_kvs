@@ -81,6 +81,8 @@ def put(key):
         payload = response.json()
         if not successful_broadcast:
             causal_context['queue'][key] = entry
+        elif key in causal_context['queue']:
+            del causal_context['queue'][key]
         payload['causal-context'] = causal_context
         return payload, response.status_code
     else:
@@ -89,42 +91,34 @@ def put(key):
 
 @app.route('/kvs/keys/<key>', methods=['DELETE'])
 def delete(key):
-    global state
     address = state.maps_to(key)
     shard_id = state.shard_map[address]  
-    data = request.get_json()
-    causal_context = data.get('causal-context', {})
+    # get causal context, if empty, initalize
+    causal_context = request.get_json().get('causal-context', {})
     if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    # if its in our shard, foward
     if shard_id == state.shard_id:
         entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
-        # Send entry to friends
+        # forward to replicas
         successful_broadcast = True
-        for replica_adddress in state.replicas:
-            if state.address != replica_adddress:
-                response = Request.send_delete_endpoint(replica_adddress, key, entry)
-                if response.status_code == 500:
-                    state.queue[replica_adddress][key] = entry
-                    successful_broadcast = False
-                else:
-                    state.vector_clock[replica_adddress] += 1
-                    # increments by 1 or matches with the internal state
-                    causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) <= state.logical else causal_context['logical']
+        for address in state.replicas:
+            response = Request.send_delete_endpoint(address, key, entry)
+            if response.status_code == 500:
+                state.queue[address][key] = entry
+                successful_broadcast = False
+            else:
+                state.vector_clock[address] += 1
+                causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) <= state.logical else causal_context['logical']
+        # send to self
         response = Request.send_delete_endpoint(state.address, key, entry, causal_context)
         payload = response.json()
-        if not successful_broadcast:
+        if not successful_broadcast: # if a node didn't recieve, save in client
             causal_context['queue'][key] = entry
+        elif key in causal_context['queue']: # if every node recieved, delete previous context from client
+            del causal_context['queue'][key]
         payload['causal-context'] = causal_context
-        if response.status_code == 500:
-            return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
         return payload, response.status_code
     else:
-        shard_id -= 1
-        for i in range(state.repl_factor):
-            address = state.view[shard_id*state.repl_factor + i]
-            response = Request.send_delete(address, key, causal_context)
-            if response.status_code != 500:
-                payload = response.json()
-                payload['address'] = address
-                return payload, response.status_code
-        return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE"}), 503
+        # key belongs to different shard, foward deletion
+        return state.delete_from_shard(shard_id, key, causal_context)
 
