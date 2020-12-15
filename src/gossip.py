@@ -27,6 +27,10 @@ def gossip_endpoint():
     for key in queue.keys():
         if key in kvs.state.storage:
             kvs.state.storage[key] = Entry.max_of_entries(kvs.state.storage[key], queue[key])
+            if queue['method'] == 'DELETE':
+                kvs.state.key_count -= 1
         else:
             kvs.state.storage[key] = queue[key]
+            if queue['method'] == 'POST':
+                kvs.state.key_count += 1
     return json.dumps({'message':'gossip complete'}), 200

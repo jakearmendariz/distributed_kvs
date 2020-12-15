@@ -83,7 +83,7 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = True):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
         # First send node-change to all nodes.
         for address in addresses:
@@ -94,73 +94,12 @@ class State():
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
-            # threads = []
-            # for address in addresses:
-            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-            #     threads[-1].start()
-            # for thread in threads:
-            #     thread.join()
-
             processes = []
             for address in addresses:
                 processes.append(multiprocessing.Process(target=Request.send_key_migration, args=(address, view)))
                 processes[-1].start()
                 processes[-1].join()
-
-            # barrier
-            # barrier = threading.Barrier(len(addresses))
-            # for address in addresses:
-            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-            #     threads[-1].start()
-            # barrier.wait()
-            # for address in addresses:
-            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-            #     threads[-1].start()
-            # for thread in threads:
-            #     thread.join()
-
-            # executor
-            # executor = ThreadPoolExecutor()
-            # wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
-            """
-            Hello, if you are trying to work on the threading give it a shot, 
-            everything I tried breaks :( I changed the virtual count to try and make the single threaded
-            version working a bit faster, if you can figure it out lmk
-
-            thread.join() will join threads before they are done. If you sleep it fixes it,
-            but that obviously won't work
-
-            barrier takes to long, slower than single thread
-
-            wait(execurtor) doesn't wait :/
-
-            Here is the code I have tried so far
-            # threaded
-            threads = []
-            for address in addresses:
-                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-                threads[-1].start()
-            for thread in threads:
-                thread.join()
-
-            # barrier
-            barrier = threading.Barrier(len(addresses))
-            for address in addresses:
-                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-                threads[-1].start()
-            barrier.wait()
-            for address in addresses:
-                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-                threads[-1].start()
-            for thread in threads:
-                thread.join()
-            
-            # executor
-            executor = ThreadPoolExecutor()
-            wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
-            """
-
-        # app.logger.info('Broadcast complete')
+        app.logger.info('Broadcast complete')
 
     def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
