@@ -274,3 +274,4 @@ class State():
     @staticmethod
     def hash_key(key):
         return sha1(key.encode('utf-8')).hexdigest()
+
