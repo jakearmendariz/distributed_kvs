@@ -117,8 +117,6 @@ def delete(key):
         elif key in causal_context['queue']: # if every node recieved, delete previous context from client
             del causal_context['queue'][key]
         payload['causal-context'] = causal_context
-        # if 'address' in payload:
-        #     del payload['address']
         return payload, response.status_code
     else:
         # key belongs to different shard, foward deletion
