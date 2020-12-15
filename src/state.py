@@ -9,6 +9,7 @@ import os
 import requests
 import random
 import threading
+import multiprocessing
 import copy
 import constants
 import time
@@ -93,12 +94,33 @@ class State():
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
-            threads = []
+            # threads = []
+            # for address in addresses:
+            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+            #     threads[-1].start()
+            #     thread[-1].join()
+
+            processes = []
             for address in addresses:
-                threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
-                threads[-1].start()
-            for thread in threads:
-                thread.join()
+                processes.append(multiprocessing.Process(target=Request.send_key_migration, args=(address, view)))
+                processes[-1].start()
+                processes[-1].join()
+
+            # barrier
+            # barrier = threading.Barrier(len(addresses))
+            # for address in addresses:
+            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+            #     threads[-1].start()
+            # barrier.wait()
+            # for address in addresses:
+            #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
+            #     threads[-1].start()
+            # for thread in threads:
+            #     thread.join()
+
+            # executor
+            # executor = ThreadPoolExecutor()
+            # wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
             """
             Hello, if you are trying to work on the threading give it a shot, 
             everything I tried breaks :( I changed the virtual count to try and make the single threaded
