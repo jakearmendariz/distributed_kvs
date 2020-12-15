@@ -18,11 +18,11 @@ from static import Request, Http_Error, Entry
 from concurrent.futures import (ThreadPoolExecutor, wait)
 
 class State():
-    def __init__(self): 
+    def __init__(self):
         self.view = sorted(os.environ.get('VIEW').split(','))
         self.address = os.environ.get('ADDRESS')
         self.repl_factor = int(os.environ["REPL_FACTOR"])
-        
+
         # SHARD
         # dictionary of all addresses in global view and their shard id's
         self.shard_map = {address: (index // int(self.repl_factor) + 1) for index, address in enumerate(self.view)}
@@ -51,7 +51,7 @@ class State():
 
     def new_vector_clock(self):
         return {address:0 for address in self.local_view}
-    
+
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     entry functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -64,7 +64,7 @@ class State():
         entry = Entry.build_entry(value, 'PUT',  self.address, self.new_vector_clock())
         entry['vector_clock'][self.address] += 1
         return entry
-    
+
     def update_put_entry(self, value, entry):
         update = self.build_put_entry(value)
         update['vector_clock'] = copy.deepcopy(entry['vector_clock'])
@@ -79,7 +79,7 @@ class State():
 
     def storage_contains(self, key):
         return key in self.storage and self.storage[key]['method'] != 'DELETE'
-    
+
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -98,7 +98,8 @@ class State():
             # for address in addresses:
             #     threads.append(threading.Thread(target=Request.send_key_migration, args=(address, view)))
             #     threads[-1].start()
-            #     thread[-1].join()
+            # for thread in threads:
+            #     thread.join()
 
             processes = []
             for address in addresses:
@@ -158,9 +159,9 @@ class State():
             executor = ThreadPoolExecutor()
             wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
             """
-           
+
         app.logger.info('Broadcast complete')
-    
+
     def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
         if set(view) == set(self.view):
@@ -194,7 +195,7 @@ class State():
                     if response.status_code == 500:
                         self.queue[address]['key'] = self.storage[key]
         app.logger.info(f'Key migration complete, key_count:{self.key_count}')
-        
+
     # sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value, causal_context={'queue':{}, 'logical':0}):
         for i in range(self.repl_factor):
@@ -218,7 +219,7 @@ class State():
                 return payload, response.status_code
         # unreachable
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE", "causal-context":causal_context}), 503
-    
+
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
@@ -234,20 +235,20 @@ class State():
     def add_nodes(self, adding):
         for address in adding:
             self.hash_and_store_address(address)
-    
+
     def delete_nodes(self, deleting):
         if len(deleting) > 0:
             for hash_key, address in list(self.virtual_map.items()):
                 if address in deleting:
                     del self.virtual_map[hash_key]
-    
+
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     hash to a node
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def maps_to(self, key):
         #binary search the key greater than the key provided
         key_hash = State.hash_key(key)
-        #if smallest value seen, or greatest value, this key should be stored in the first node. 
+        #if smallest value seen, or greatest value, this key should be stored in the first node.
         if self.indices[0] >= key_hash or self.indices[-1] < key_hash:
             return self.virtual_map[self.indices[0]]
         l,r = 0, len(self.indices)-2
@@ -260,7 +261,7 @@ class State():
                 r = mid
             elif self.indices[mid+1] < key_hash:
                 l = mid+1
-        
+
         return self.virtual_map[self.indices[-1]]
 
     def hash_and_store_address(self, address):
