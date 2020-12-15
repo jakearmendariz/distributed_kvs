@@ -160,7 +160,7 @@ class State():
             wait([executor.submit(Request.send_key_migration, address, view) for address in addresses])
             """
 
-        app.logger.info('Broadcast complete')
+        # app.logger.info('Broadcast complete')
 
     def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")

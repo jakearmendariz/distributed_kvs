@@ -106,7 +106,7 @@ def disconnectFromNetwork(subnetName, instanceName):
 ################################# Unit Test Class ############################################################
 
 extra_credit = True # this feature is WIP
-print_response = True
+print_response = False
 
 class TestHW3(unittest.TestCase):
     buildDockerImage()
@@ -222,7 +222,7 @@ class TestHW3(unittest.TestCase):
             response = client.putKey(key,update_value,port)
             self.assertEqual_helper(response,updateResponse_Success)
 
-        print(key_counts0)
+        # print(key_counts0)
         for in_ in old_ins:
             response = client.keyCount(in_["host_port"])
             key_count, shard_id = self.key_count_helper(response)
@@ -231,7 +231,7 @@ class TestHW3(unittest.TestCase):
         port = old_ins[0]["host_port"]
         response = client.viewChange(new_view,new_repl_factor,port)
         key_counts1 = self.view_change_response_helper(response,new_nodes,new_shard_count)
-        print(key_counts1)
+        # print(key_counts1)
 
         port = new_ins[0]["host_port"]
         response = client.getShards(port)
@@ -274,6 +274,7 @@ class TestHW3(unittest.TestCase):
         return keycounts
 
     def test_view_change_1(self):
+        time_start = time.time()
         old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
         old_view = ",".join(old_nodes)
 
@@ -291,8 +292,12 @@ class TestHW3(unittest.TestCase):
         new_view = ",".join(new_nodes)
 
         self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+        time_end = time.time()
+        time_total = time_end - time_start
+        print("Time total of test 1: ", time_total)
 
     def test_view_change_2(self):
+        time_start = time.time()
         old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
         old_view = ",".join(old_nodes)
 
@@ -311,8 +316,12 @@ class TestHW3(unittest.TestCase):
         new_view = ",".join(new_nodes)
 
         self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+        time_end = time.time()
+        time_total = time_end - time_start
+        print("Time total of test 2: ", time_total)
 
     def test_view_change_3(self):
+        time_start = time.time()
         old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
         old_view = ",".join(old_nodes)
 
@@ -329,6 +338,9 @@ class TestHW3(unittest.TestCase):
         new_view = ",".join(new_nodes)
 
         self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+        time_end = time.time()
+        time_total = time_end - time_start
+        print("Time total of test 3: ", time_total)
 
 if __name__ == '__main__':
     unittest.main()
