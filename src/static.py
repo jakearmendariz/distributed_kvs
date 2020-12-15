@@ -162,7 +162,21 @@ class Request():
     @staticmethod
     def send_key_migration(address, view):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=6, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/key-migration', json = {"view":view}, timeout=4, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
+
+    @staticmethod
+    def put_keys(address, _type, values):
+        response = None
+        try: response = requests.put(f'http://{address}/kvs/set', json = {"type":_type, "values":values}, timeout=3, headers = {"Content-Type": "application/json"})
+        except: response = Http_Error(500)
+        finally: return response
+
+    @staticmethod
+    def delete_keys(address, _type, values):
+        response = None
+        try: response = requests.delete(f'http://{address}/kvs/set', json = {"type":_type, "values":values}, timeout=3, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 

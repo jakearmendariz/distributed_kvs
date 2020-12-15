@@ -1,6 +1,13 @@
 # Assignment 4
 Team: Dorothy, Joshua, Jake, Julian
 
+
+# TODO
+Logical clocks were designed to only work on a shard to shard basis.
+This creates problems for causal consistency when working with multiple shards
+
+We need to implement a solution to this
+
 # Design
 ## Goal
 Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, your team’s key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
