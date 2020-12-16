@@ -60,7 +60,6 @@ def getter(key):
         for cc_key in queue:
             causal = Entry.compare_vector_clocks(queue[cc_key]['vector_clock'], kvs.state.storage.get(cc_key, {}).get('vector_clock', {}))
             if causal == constants.GREATER_THAN or causal == constants.CONCURRENT:
-                # app.logger.info(f'key:{cc_key}:{queue[cc_key]} is farther in the future')
                 return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
