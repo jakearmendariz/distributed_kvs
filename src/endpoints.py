@@ -60,7 +60,9 @@ def getter(key):
         for cc_key in queue:
             causal = Entry.compare_vector_clocks(queue[cc_key]['vector_clock'], kvs.state.storage.get(cc_key, {}).get('vector_clock', {}))
             if causal == constants.GREATER_THAN or causal == constants.CONCURRENT:
-                return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
+                # if the key doesn't belong to our shard then its okay for it to be in the future
+                if kvs.state.shard_map[kvs.state.maps_to(key)] == kvs.state.shard_id:
+                    return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])
