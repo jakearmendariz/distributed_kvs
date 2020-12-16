@@ -1,5 +1,5 @@
 Team Member	Primary Contribution	Secondary Contribition	ETC
 Jake Armendariz	View change, causal context, design doc, key value store, replication testing.
 Xuan Ji	All administrative APIs	replica related work, a lot of testing	Performance, response audit and bug fixes.
-Julian Shalaby
-Joshua Rony	
+Julian Shalaby a view-change preformance test
+Joshua Rony	design
