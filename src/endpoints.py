@@ -48,12 +48,20 @@ Setting values
 def getter(key):
     causal_context = request.get_json().get('causal-context', {'queue':{}, 'logical':0})
     if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
-    logical = causal_context['logical']
     queue = causal_context['queue']
-    if logical > kvs.state.logical and key not in causal_context:
-        return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
-    elif logical < kvs.state.logical:
-        causal_context['logical'] = kvs.state.logical
+    # LOGICAL CLOCKS
+    # logical = causal_context['logical']
+    # if logical > kvs.state.logical and key not in causal_context:
+    #     return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
+    # elif logical < kvs.state.logical:
+    #     causal_context['logical'] = kvs.state.logical
+    # TOTAL INFORMATION
+    if key not in queue and key in kvs.state.storage:
+        for cc_key in queue:
+            causal = Entry.compare_vector_clocks(queue[cc_key]['vector_clock'], kvs.state.storage.get(cc_key, {}).get('vector_clock', {}))
+            if causal == constants.GREATER_THAN or causal == constants.CONCURRENT:
+                # app.logger.info(f'key:{cc_key}:{queue[cc_key]} is farther in the future')
+                return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])
