@@ -83,25 +83,21 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = True):
+    def broadcast_view(self, view, repl_factor, multi_threaded = False):
         addresses = set(sorted(view.split(',')) + self.view)
-        if not multi_threaded:
-            for address in addresses:
+        for address in addresses:
                 Request.send_node_change(address, view, repl_factor)
+        if not multi_threaded:
             for address in addresses:
                 Request.send_key_migration(address, view)
         else:
             processes = []
             for address in addresses:
-                processes.append(multiprocessing.Process(target=State.view_change, args=(address, view, repl_factor)))
+                processes.append(multiprocessing.Process(target=Request.send_key_migration, args=(address, view)))
                 processes[-1].start()
                 processes[-1].join()
         app.logger.info('Broadcast complete')
 
-    @staticmethod
-    def view_change(self, address, view, repl_factor):
-        Request.send_node_change(address, view, repl_factor)
-        Request.send_key_migration(address, view)
 
     def node_change(self, view, repl_factor):
         app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
