@@ -63,6 +63,9 @@ def getter(key):
                 # if the key doesn't belong to our shard then its okay for it to be in the future
                 if kvs.state.shard_map[kvs.state.maps_to(key)] == kvs.state.shard_id:
                     return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
+            # vector clocks mismatch then the causal context is from a previous view change. Delete it
+            elif causal == constants.MISMATCH:
+                del causal[cc_key]
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])

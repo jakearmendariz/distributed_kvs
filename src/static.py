@@ -33,6 +33,7 @@ class Entry():
         if len(vc1) == 0 and len(vc2) == 0: return constants.EQUAL
         elif len(vc1) == 0: return constants.LESS_THAN
         elif len(vc2) == 0: return constants.GREATER_THAN
+        elif set(vc1.keys()) != set(vc2.keys()): return constants.MISMATCH
         vc1_flag = vc2_flag = False
 
         for x in vc1.keys():
@@ -79,7 +80,7 @@ class Entry():
         if len(entry1) == 0: return entry2
         if len(entry2) == 0: return entry1
         result = Entry.compare_vector_clocks(entry1['vector_clock'], entry2['vector_clock'])
-        if result == constants.CONCURRENT:
+        if result == constants.CONCURRENT or result == constants.MISMATCH:
             entry = None
             if entry1['created_at'] > entry2['created_at']:
                 entry = entry1
@@ -87,7 +88,9 @@ class Entry():
                 entry = entry2
             else:
                 entry =  entry1 if entry1['address'] > entry2['address'] else entry2
-            entry['vector_clock'] = Entry.vc_pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
+            if result == constants.CONCURRENT:
+                entry['vector_clock'] = Entry.vc_pairwise_max(entry1['vector_clock'], entry2['vector_clock'])
+            # elif mismatch use the up to date vector clock
             return entry
         elif result == constants.LESS_THAN:
             return entry2
