@@ -65,7 +65,7 @@ def getter(key):
                     return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
             # vector clocks mismatch then the causal context is from a previous view change. Delete it
             elif causal == constants.MISMATCH:
-                del causal[cc_key]
+                del causal_context[cc_key]
     if key in kvs.state.storage:
         entry = kvs.state.storage[key]
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])
