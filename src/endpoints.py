@@ -46,7 +46,9 @@ Setting values
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/<key>', methods=['GET'])
 def getter(key):
-    causal_context = request.get_json().get('causal-context', {'queue':{}, 'logical':0})
+    data = request.get_json()
+    if data == None: data = {}
+    causal_context = data.get('causal-context', {'queue':{}, 'logical':0})
     if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     logical = causal_context['logical']
     queue = causal_context['queue']
@@ -55,9 +57,16 @@ def getter(key):
     elif logical < kvs.state.logical:
         causal_context['logical'] = kvs.state.logical
     if key in kvs.state.storage:
+        app.logger.info(f'entry1:{kvs.state.storage[key]}')
+        app.logger.info(f'queue:{queue[key]}')
         entry = kvs.state.storage[key]
+        # if isinstance(queue[key], str):
+        #     queue[key] = json.loads(queue[key])
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])
+        app.logger.info(f'entry2:{entry}')
         causal_context['queue'][key] = entry
+        if isinstance(entry, str):
+            entry = json.loads(entry)
         if entry['method'] == 'DELETE':
             return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
         else:
@@ -137,9 +146,9 @@ def get_shard_information(id):
     shard_id = int(id) - 1
     key_count = 0
     for i in range(kvs.state.repl_factor):
-            address =kvs.state.view[shard_id*kvs.state.repl_factor + i]
-            response = requests.get(f'http://{address}/kvs/key-count')
-            key_count = max(key_count, response.json()['key-count'])
+        address =kvs.state.view[shard_id*kvs.state.repl_factor + i]
+        response = requests.get(f'http://{address}/kvs/key-count')
+        key_count = max(key_count, response.json()['key-count'])
     return json.dumps({"message": "Shard information retrieved successfully", "shard-id": id, 
         "key-count": key_count, "replicas":kvs.state.view[shard_id*kvs.state.repl_factor:(shard_id+1)*kvs.state.repl_factor]}), 200
 

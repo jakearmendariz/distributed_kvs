@@ -184,90 +184,14 @@ class TestHW3(unittest.TestCase):
             key_count[shard_id] = 1
 
 
-    def gossip_helper(self,shard_count,nodes,ins):
-        client = Client(causal_context_flag=False,print_response=print_response)
-
-        node_count = len(nodes)
-
-        stopAndRemoveAll()
-        runInstances(ins)
-
-        port = ins[0]["host_port"]
-        response = client.getShards(port)
-        shard_ids = self.get_shards_helper(response,shard_count)
-
-        shards = {"nodes":[],"shards": {}}
-        for shard_id in shard_ids:
-            response = client.getShard(port,shard_id)
-            _, replicas = self.get_shard_helper(response,shard_id)
-            self.add_nodes(shards,replicas,shard_id)
-
-        self.nodes_equal(nodes,shards["nodes"])
-
-        keys = 10
-        key_counts0 = {}
-        for i in range(keys):
-            key = "test_gossip_%d"%i
-            value = "I don't care %d"%i
-
-            address,port = ins[i%node_count]["address"],ins[i%node_count]["host_port"]
-
-            response = client.putKey(key,value,port)
-            self.assertEqual_helper(response,addResponse_Success)
-
-            response = client.putKey(key,value,port)
-            self.assertEqual_helper(response,updateResponse_Success)
-
-            shard_id = self.check_shard_id_by_address(response,shards,address)
-            self.key_count_add(key_counts0,shard_id)
-
-            # get
-            response = client.getKey(key,port)
-            expected = getResponse_Success.copy()
-            expected["value"] = value
-            self.assertEqual_helper(response,expected)
-            self.assertEqual(shard_id,self.check_shard_id_by_address(response,shards,address))
-
-        time.sleep(5) # wait for gossip
-        for in_ in ins:
-            response = client.keyCount(in_["host_port"])
-            key_count, shard_id = self.key_count_helper(response)
-            self.assertEqual(key_count,key_counts0[shard_id])
-
-        key_counts1 = {}
-        for shard_id in shard_ids:
-            response = client.getShard(port,shard_id)
-            key_count, _ = self.get_shard_helper(response,shard_id)
-            key_counts1[shard_id] = key_count
-        self.assertEqual(key_counts0,key_counts1)
-
-        if extra_credit:
-            key_counts2 = {}
-            for i in range(keys):
-                key = "test_gossip_%d"%i
-
-                address,port = ins[i%node_count]["address"],ins[i%node_count]["host_port"]
-
-                response = client.deleteKey(key,port)
-                self.assertEqual_helper(response,delResponse_Success)
-
-                shard_id = self.check_shard_id_by_address(response,shards,address)
-                self.key_count_add(key_counts2,shard_id)
-            self.assertEqual(key_counts0,key_counts2)
-
-            time.sleep(5) # wait for gossip
-            for in_ in ins:
-                response = client.keyCount(in_["host_port"])
-                key_count, _ = self.key_count_helper(response)
-
     def view_change_helper(self,old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins):
         client = Client(causal_context_flag=False,print_response=print_response)
 
         old_node_count,new_node_count = len(old_nodes),len(new_nodes)
 
-        stopAndRemoveAll()
-        runInstances(old_ins)
-        runInstances(new_ins) # todo
+        # stopAndRemoveAll()
+        # runInstances(old_ins)
+        # runInstances(new_ins) # todo
 
         port = old_ins[0]["host_port"]
         response = client.getShards(port)
@@ -360,44 +284,44 @@ class TestHW3(unittest.TestCase):
 
         return keycounts
 
-    def test_view_change_1(self):
-        old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_1(self):
+    #     old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
-    def test_view_change_2(self):
-        old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_2(self):
+    #     old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
 
     def test_view_change_3(self):
         old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]

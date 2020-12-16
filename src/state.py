@@ -114,25 +114,43 @@ class State():
 
     def key_migration(self, view):
         app.logger.info("Key migration starts")
+        deleting = {address:{} for address in self.view}
+        putting = {address:{} for address in self.view}
+
         for key in list(self.storage.keys()):
-            app.logger.info(f'migrating key:{key} of value {self.storage[key]}')
             address = self.maps_to(key)
             shard_id = self.shard_map[address]
+            
             if self.shard_id != shard_id:
                 if self.storage[key]['method'] != 'DELETE':
-                    self.put_to_shard(shard_id, key, self.storage[key]['value'])
+                    putting[address][key] = self.storage[key]['value']
                     self.key_count -= 1
                 del self.storage[key]
             else:
                 self.storage[key]['vector_clock'] = self.new_vector_clock()
                 for address in self.replicas:
-                    response = None
                     if self.storage[key]['method'] != 'DELETE':
-                        response = Request.send_put(address, key, self.storage[key]['value'])
+                        putting[address][key] = self.storage[key]['value']
                     else:
-                        response = Request.send_delete(address, key)
-                    if response.status_code == 500:
-                        self.queue[address]['key'] = self.storage[key]
+                        deleting[address][key] = self.storage[key]['value']
+        app.logger.info(f'\n\nputting dict:{putting}\n\n\n')
+        # send mass storage
+        for address, store in putting.items():
+            if len(store) > 0:
+                if self.shard_map[address] == self.shard_id:
+                    app.logger.info(f'\n\nputting dict to replica {address}\n')
+                    Request.put_store(address, store, 'replica')
+                else:
+                    app.logger.info(f'\n\nputting dict to shard {address}\n {store} \n')
+                    response = Request.put_store(address, store, 'shard')
+                    app.logger.info(f'shard response:{response.status_code}')
+        # send mass deletion
+        for address, store in deleting.items():
+            if len(store) > 0:
+                if self.shard_map[address] == self.shard_id:
+                    Request.delete_store(address, store, 'replica')
+                else:
+                    Request.delete_store(address, store, 'shard')
         app.logger.info(f'Key migration complete, key_count:{self.key_count}')
 
     # sends a value to a shard, first successful request wins

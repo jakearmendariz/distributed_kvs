@@ -26,6 +26,8 @@ key value store
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 @app.route('/kvs/keys/<key>', methods=['GET'])
 def get(key):
+    if state.address not in state.view: return json.dumps({"error":"Unable to satisfy request", "message":"Error in GET"}), 503
+    app.logger.info(f'\n\n\nGET KEY:{state.storage.get(key, {})}')
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     data = request.get_json()
@@ -98,6 +100,7 @@ def delete(key):
     if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
     # if its in our shard, foward
     if shard_id == state.shard_id:
+        app.logger.info(f'update delete entry {state.storage[key]}')
         entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
         # forward to replicas
         successful_broadcast = True

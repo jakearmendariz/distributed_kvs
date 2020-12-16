@@ -106,7 +106,7 @@ def disconnectFromNetwork(subnetName, instanceName):
 ################################# Unit Test Class ############################################################
 
 extra_credit = True # this feature is WIP
-print_response = False
+print_response = True
 
 class TestHW3(unittest.TestCase):
     buildDockerImage()
@@ -253,6 +253,7 @@ class TestHW3(unittest.TestCase):
             key = "test_view_change_%d"%i
             value = "I do care %d"%i
             address,port = new_ins[i%new_node_count]["address"],new_ins[i%new_node_count]["host_port"]
+            print(f'get request to {port}, key:{key}')
             # get
             response = client.getKey(key,port)
             expected = getResponse_Success.copy()
@@ -273,52 +274,52 @@ class TestHW3(unittest.TestCase):
 
         return keycounts
 
-    def test_view_change_1(self):
-        time_start = time.time()
-        old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_1(self):
+    #     time_start = time.time()
+    #     old_shard_count,old_repl_factor,old_nodes = 1,1,["10.10.0.2:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
-        time_end = time.time()
-        time_total = time_end - time_start
-        print("Time total of test 1: ", time_total)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     time_end = time.time()
+    #     time_total = time_end - time_start
+    #     print("Time total of test 1: ", time_total)
 
-    def test_view_change_2(self):
-        time_start = time.time()
-        old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
-        old_view = ",".join(old_nodes)
+    # def test_view_change_2(self):
+    #     time_start = time.time()
+    #     old_shard_count,old_repl_factor,old_nodes = 1,2,["10.10.0.2:13800","10.10.0.3:13800"]
+    #     old_view = ",".join(old_nodes)
 
-        old_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-        ]
-        new_ins = [
-            {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
-            {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
-        ]
+    #     old_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
+    #     new_ins = [
+    #         {"subnet":"kv_subnet","host_port":13800,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.3","address":"10.10.0.3:13800","name":"node2","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13802,"ip_address":"10.10.0.4","address":"10.10.0.4:13800","name":"node3","view":old_view,"repl_factor":old_repl_factor},
+    #         {"subnet":"kv_subnet","host_port":13803,"ip_address":"10.10.0.5","address":"10.10.0.5:13800","name":"node4","view":old_view,"repl_factor":old_repl_factor},
+    #     ]
 
-        new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
-        new_view = ",".join(new_nodes)
+    #     new_shard_count,new_repl_factor,new_nodes = 2,2,["10.10.0.2:13800","10.10.0.3:13800","10.10.0.4:13800","10.10.0.5:13800"]
+    #     new_view = ",".join(new_nodes)
 
-        self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
-        time_end = time.time()
-        time_total = time_end - time_start
-        print("Time total of test 2: ", time_total)
+    #     self.view_change_helper(old_shard_count,old_nodes,old_ins,new_shard_count,new_repl_factor,new_nodes,new_view,new_ins)
+    #     time_end = time.time()
+    #     time_total = time_end - time_start
+    #     print("Time total of test 2: ", time_total)
 
     def test_view_change_3(self):
         time_start = time.time()

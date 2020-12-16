@@ -167,16 +167,16 @@ class Request():
         finally: return response
 
     @staticmethod
-    def put_keys(address, _type, values):
+    def put_store(address, store, _type):
         response = None
-        try: response = requests.put(f'http://{address}/kvs/set', json = {"type":_type, "values":values}, timeout=3, headers = {"Content-Type": "application/json"})
+        try: response = requests.put(f'http://{address}/kvs/view-change/store', json = {"type":_type, "store":store}, timeout=3, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 
     @staticmethod
-    def delete_keys(address, _type, values):
+    def delete_store(address, store, _type):
         response = None
-        try: response = requests.delete(f'http://{address}/kvs/set', json = {"type":_type, "values":values}, timeout=3, headers = {"Content-Type": "application/json"})
+        try: response = requests.delete(f'http://{address}/kvs/view-change/store', json = {"type":_type, "store":store}, timeout=3, headers = {"Content-Type": "application/json"})
         except: response = Http_Error(500)
         finally: return response
 

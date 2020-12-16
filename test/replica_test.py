@@ -182,87 +182,87 @@ class TestHW3(unittest.TestCase):
 		return key_counts, total_keys
 
 	# (add, update, get, key-count, delete, key-count)'s
-	def test_1(self):
-		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-		keys = 20
-		for i in range(keys):
-			id1,id2 = 1,2
-			if i%2 == 0:
-				id1,id2 = 2,1
+	# def test_1(self):
+	# 	result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
+	# 	keys = 10
+	# 	for i in range(keys):
+	# 		id1,id2 = 1,2
+	# 		if i%2 == 0:
+	# 			id1,id2 = 2,1
 
-			key = "test_1_%d"%i
-			value = "a friendly string %d"%i
+	# 		key = "test_1_%d"%i
+	# 		value = "a friendly string %d"%i
 
-			# add
-			result = client.putKey(key,value,nodes[id1]["port"])
-			self.assertEqual_helper(result,addResponse_Success)
-			# update
-			result = client.putKey(key,value,nodes[id1]["port"])
-			self.assertEqual_helper(result,updateResponse_Success)
-			# get
-			result = client.getKey(key,nodes[id2]["port"])
-			expected = getResponse_Success.copy()
-			expected["value"] = value
-			self.check_node_id(result,id2,2)
-			self.assertEqual_helper(result,expected)
-			# key-count
-			key_counts, total = self.get_key_counts(2)
-			self.assertEqual(total, 1)
-			# delete
-			result = client.deleteKey(key, nodes[id2]["port"])
-			self.check_node_id(result,id2,2)
-			self.assertEqual_helper(result, delResponse_Success)
-			# key-count
-			key_counts, total = self.get_key_counts(2)
-			self.assertEqual(total, 0)
-			print(f'\ncompleted {key} round\n')
+	# 		# add
+	# 		result = client.putKey(key,value,nodes[id1]["port"])
+	# 		self.assertEqual_helper(result,addResponse_Success)
+	# 		# update
+	# 		result = client.putKey(key,value,nodes[id1]["port"])
+	# 		self.assertEqual_helper(result,updateResponse_Success)
+	# 		# get
+	# 		result = client.getKey(key,nodes[id2]["port"])
+	# 		expected = getResponse_Success.copy()
+	# 		expected["value"] = value
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result,expected)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(2)
+	# 		self.assertEqual(total, 1)
+	# 		# delete
+	# 		result = client.deleteKey(key, nodes[id2]["port"])
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result, delResponse_Success)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(2)
+	# 		self.assertEqual(total, 0)
+	# 		print(f'\ncompleted {key} round\n')
 
-	# (two replicas, check to see if they update
-	def test_2(self):
-		repl_factor = 2
-		result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)
-		key_counts, total = self.get_key_counts(4)
-		self.assertEqual(total, 0)
-		keys = 50
-		for i in range(keys):
-			id1,id2 = 1,2
-			if i%2 == 0:
-				id1,id2 = 2,1
+	# # (two replicas, check to see if they update
+	# def test_2(self):
+	# 	repl_factor = 2
+	# 	result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)
+	# 	key_counts, total = self.get_key_counts(4)
+	# 	self.assertEqual(total, 0)
+	# 	keys = 10
+	# 	for i in range(keys):
+	# 		id1,id2 = 1,2
+	# 		if i%2 == 0:
+	# 			id1,id2 = 2,1
 
-			key = "test_1_%d"%i
-			value = "a friendly string %d"%i
+	# 		key = "test_1_%d"%i
+	# 		value = "a friendly string %d"%i
 
-			# add
-			result = client.putKey(key,value,nodes[id1]["port"])
-			self.assertEqual_helper(result,addResponse_Success)
-			# get
-			result = client.getKey(key,nodes[id2]["port"])
-			expected = getResponse_Success.copy()
-			# update
-			result = client.putKey(key,value,nodes[id1]["port"])
-			self.assertEqual_helper(result,updateResponse_Success)
-			# get
-			result = client.getKey(key,nodes[id2+1]["port"])
-			expected = getResponse_Success.copy()
-			expected["value"] = value
-			self.check_node_id(result,id2,2)
-			self.assertEqual_helper(result,expected)
-			# key-count
-			key_counts, total = self.get_key_counts(4)
-			self.assertEqual(total, repl_factor)
-			# delete
-			result = client.deleteKey(key, nodes[id2]["port"])
-			self.check_node_id(result,id2,2)
-			self.assertEqual_helper(result, delResponse_Success)
-			# key-count
-			key_counts, total = self.get_key_counts(4)
-			self.assertEqual(total, 0)
-			print(f'\ncompleted {key} round\n')
+	# 		# add
+	# 		result = client.putKey(key,value,nodes[id1]["port"])
+	# 		self.assertEqual_helper(result,addResponse_Success)
+	# 		# get
+	# 		result = client.getKey(key,nodes[id2]["port"])
+	# 		expected = getResponse_Success.copy()
+	# 		# update
+	# 		result = client.putKey(key,value,nodes[id1]["port"])
+	# 		self.assertEqual_helper(result,updateResponse_Success)
+	# 		# get
+	# 		result = client.getKey(key,nodes[id2+1]["port"])
+	# 		expected = getResponse_Success.copy()
+	# 		expected["value"] = value
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result,expected)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(4)
+	# 		self.assertEqual(total, repl_factor)
+	# 		# delete
+	# 		result = client.deleteKey(key, nodes[id2]["port"])
+	# 		self.check_node_id(result,id2,2)
+	# 		self.assertEqual_helper(result, delResponse_Success)
+	# 		# key-count
+	# 		key_counts, total = self.get_key_counts(4)
+	# 		self.assertEqual(total, 0)
+	# 		print(f'\ncompleted {key} round\n')
 
 # # 	# add's, key-count, view-change, delete's, key-count
 	def test_3(self):
 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-		keys = 50
+		keys = 20
 		# add's
 		for i in range(keys):
 			id = 1
