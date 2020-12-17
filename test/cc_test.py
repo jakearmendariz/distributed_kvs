@@ -13,6 +13,8 @@ from termcolor import colored
 #list of relevant ports
 listOfPorts = ["13801", "13802", "13803", "13804"]
 
+response_cc = None
+
 def printTestResult(message, flag):
     
     pass_string = "###############################################\n" + message + "\n" + colored("Pass", "green") + "\n###############################################"
@@ -84,13 +86,12 @@ def disconnectFromNetwork(subnetName, instanceName):
 
 def main():
 
-    response_cc = None
-
     view = "10.10.0.2:13800,10.11.0.3:13800"
 
     buildDockerImage()
     subnetCreate("10.10.0.0/16","kv_subnet")
     subnetCreate("10.11.0.0/16","kv_subnet_2")
+    subnetCreate("10.12.0.0/16","kv_subnet_3")
 
     in_ = [{"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":2}, 
     {"subnet":"kv_subnet_2","host_port":13802,"ip_address":"10.11.0.3","address":"10.11.0.3:13800","name":"node2","view":view,"repl_factor":2}]
@@ -179,13 +180,13 @@ def main():
 
     try:#initializing x
         payload = json.dumps({"value":"init_x", "causal-context":{}})
-        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=6, headers=headers)
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
     except:
         print("server at local host " + listOfPorts[1] + " timed out.")
 
     try:#initializing y
         payload = json.dumps({"value":"init_y", "causal-context":{}})
-        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/y', data=payload, timeout=6, headers=headers)
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
     except:
         print("server at local host " + listOfPorts[1] + " timed out.")
     
@@ -195,14 +196,14 @@ def main():
 
     try:#Alice writes "Fuck my life." to y at node1
         payload = json.dumps({"value":"Fuck my life.", "causal-context":{}})
-        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/y', data=payload, timeout=6, headers=headers)
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
         response_cc = response.json()["causal-context"]
     except:
         print("server at local host " + listOfPorts[0] + " timed out.")
 
     try:#Alice reads x from node2(this should be fine)
         payload = json.dumps({"causal-context":response_cc})
-        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/x', data=payload, timeout=6, headers=headers)
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
         response_cc = response.json()["causal-context"]
         if response.status_code != 200:
             message = "Read your writes test complete.\n" + "> " + str(response.json())
@@ -212,7 +213,7 @@ def main():
 
     try:#Alice reads y from node2 (should either get "Fuck my life." or a NACK)
         payload = json.dumps({"causal-context":response_cc})
-        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/y', data=payload, timeout=6, headers=headers)
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
         response_cc = response.json()["causal-context"]
         message = "Read your writes test complete.\n" + "> " + str(response.json())
         if response.status_code == 200:
@@ -226,6 +227,235 @@ def main():
             printTestResults(message, 0) 
     except:
         print("server at local host " + listOfPorts[1] + " timed out.")
+
+#################################  cc_test_3(Read Your Writes - Delete - Test) ########################################################
+
+    stopAndRemoveAll()
+    runInstances(in_)
+
+    #create the bridge
+    connectToNetwork("kv_subnet","node2")
+    connectToNetwork("kv_subnet_2","node1")
+
+    try:#initializing x
+        payload = json.dumps({"value":"init_x", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    #burn the bridge    
+    disconnectFromNetwork("kv_subnet", "node2")
+    disconnectFromNetwork("kv_subnet_2", "node1")
+
+    try:#Alice deletes x from node1
+        payload = json.dumps({"causal-context":{}})
+        response = requests.delete(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        response_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#Alice reads x from node2 (should get 404)
+        payload = json.dumps({"causal-context":response_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        message = "Read your writes - Delete - test complete\n" + "> " + str(response.json())
+        if response.status_code == 404:
+            printTestResult(message, 1)
+        else:
+            printTestResult(message, 0)
+    except:
+        print("server at local host " + listOfPorts[1] + " timed out.")
+
+
+#################################  cc_test_4(long-chain cc test) ########################################################
+
+    view = "10.10.0.2:13800,10.11.0.3:13800,10.12.0.4:13800"
+
+    Alice_cc = None
+    Carol_cc = None
+    Bob_cc = None
+    Ginger_cc = None
+
+    in_ = [{"subnet":"kv_subnet","host_port":13801,"ip_address":"10.10.0.2","address":"10.10.0.2:13800","name":"node1","view":view,"repl_factor":3}, 
+    {"subnet":"kv_subnet_2","host_port":13802,"ip_address":"10.11.0.3","address":"10.11.0.3:13800","name":"node2","view":view,"repl_factor":3},
+    {"subnet":"kv_subnet_3","host_port":13803,"ip_address":"10.12.0.4","address":"10.12.0.4:13800","name":"node3","view":view,"repl_factor":3}]
+
+    stopAndRemoveAll()
+    runInstances(in_)
+
+    #create the bridge
+    connectToNetwork("kv_subnet","node2")
+    connectToNetwork("kv_subnet_2","node1")
+    connectToNetwork("kv_subnet_3","node2")
+    connectToNetwork("kv_subnet_3","node1")
+    connectToNetwork("kv_subnet", "node3")
+    connectToNetwork("kv_subnet_2", "node3")
+
+    #initializing variables
+
+    try:#initializing x
+        payload = json.dumps({"value":"init_x", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#initializing y
+        payload = json.dumps({"value":"init_y", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#initializing z
+        payload = json.dumps({"value":"init_z", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/z', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#initializing w
+        payload = json.dumps({"value":"init_w", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/w', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    #destroy the bridge (totally disconnected graph)
+    disconnectFromNetwork("kv_subnet","node2")
+    disconnectFromNetwork("kv_subnet_2","node1")
+    disconnectFromNetwork("kv_subnet_3","node2")
+    disconnectFromNetwork("kv_subnet_3","node1")
+    disconnectFromNetwork("kv_subnet", "node3")
+    disconnectFromNetwork("kv_subnet_2", "node3")
+
+    try:#Alice writes "Bob Smells." to x at node1
+        payload = json.dumps({"value":"Bob smells.", "causal-context":{}})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        Alice_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#Bob reads x from node1
+        payload = json.dumps({"causal-context":{}})
+        response = requests.get(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        Bob_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#Bob writes "Fuck you, Alice." to y at node2
+        payload = json.dumps({"value":"Fuck you, Alice.", "causal-context":Bob_cc})
+        response = requests.put(f'http://localhost:{listOfPorts[1]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
+    except:
+        print("server at local host " + listOfPorts[1] + " timed out.")
+
+    try:#Carol reads y from node2
+        payload = json.dumps({"causal-context":{}})
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
+        Carol_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[1] + " timed out.")
+
+    try:#Carol reads x from node2
+        payload = json.dumps({"causal-context":Carol_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        Carol_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[1] + " timed out.")
+
+    try:#Carol writes "What does Bob smell like?" to z at node3
+        payload = json.dumps({"value":"What does Bob smell like?", "causal-context":Carol_cc})
+        response = requests.put(f'http://localhost:{listOfPorts[2]}/kvs/keys/z', data=payload, timeout=7, headers=headers)
+        Carol_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[2] + " timed out.")
+
+    try:#Alice reads z from node3
+        payload = json.dumps({"causal-context":Alice_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[2]}/kvs/keys/z', data=payload, timeout=7, headers=headers)
+        Alice_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[2] + " timed out.")
+
+    try:#Alice writes "Like ass." to w at node1
+        payload = json.dumps({"value":"Like ass.", "causal-context":Alice_cc})
+        response = requests.put(f'http://localhost:{listOfPorts[0]}/kvs/keys/w', data=payload, timeout=7, headers=headers)
+        Alice_cc = response.json()["causal-context"]
+    except:
+        print("server at local host " + listOfPorts[0] + " timed out.")
+
+    try:#Ginger reads w from node1 (should get "Like ass.")
+        payload = json.dumps({"causal-context":{}})
+        response = requests.get(f'http://localhost:{listOfPorts[0]}/kvs/keys/w', data=payload, timeout=7, headers=headers)
+        Ginger_cc = response.json()["causal-context"]
+        message = "Ginger read z, here's what she got:\n" + "> " + str(response.json())
+        if response.status_code == 200:
+            if response.json()["value"] != "Like ass.":
+                printTestResult(message, 0)
+        else:
+            printTestResults(message, 0)
+    except:
+        message = "Ginger tried to read w, but the attempt failed due to time out. (long - chain cc test)"
+        printTestResult(message, 0)
+
+    try:#Ginger reads z from node2 (should get "What does Bob smell like?" or NACK)
+        payload = json.dumps({"causal-context":Ginger_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[1]}/kvs/keys/z', data=payload, timeout=7, headers=headers)
+        Ginger_cc = response.json()["causal-context"]
+        message = "Ginger read z, here's what she got:\n" + "> " + str(response.json())
+        if response.status_code == 200:
+            if response.json()["value"] != "What does Bob smell like?":
+                printTestResult(message, 0)
+        if response.status_code == 400:
+            if response.json()["error"] != "Unable to satisfy request" or response.json()["message"] != "Error in GET":
+                printTestResult(message, 0)
+    except:
+        message = "Ginger tried to read z, but the attempt failed due to time out. (long - chain cc test)"
+        printTestResult(message, 0)
+
+    try:#Ginger reads y from node3 (should get "Fuck you, Alice." or NACK)
+        payload = json.dumps({"causal-context":Ginger_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[2]}/kvs/keys/y', data=payload, timeout=7, headers=headers)
+        Ginger_cc = response.json()["causal-context"]
+        message = "Ginger read y, here's what she got:\n" + "> " + str(response.json())
+        if response.status_code == 200:
+            if response.json()["value"] != "Fuck you, Alice.":
+                printTestResult(message, 0)
+        if response.status_code == 400:
+            if response.json()["error"] != "Unable to satisfy request" or response.json()["message"] != "Error in GET":
+                printTestResult(message, 0)
+    except:
+        message = "Ginger tried to read y, but the attempt failed due to time out (long - chain cc test)."
+        printTestResult(message, 0)
+
+    try:#Ginger reads x from node1 (should get "Bob Smells." or NACK)
+        payload = json.dumps({"causal-context":Ginger_cc})
+        response = requests.get(f'http://localhost:{listOfPorts[0]}/kvs/keys/x', data=payload, timeout=7, headers=headers)
+        Ginger_cc = response.json()["causal-context"]
+        message = "Ginger read x, here's what she got:\n" + "> " + str(response.json())
+        if response.status_code == 200:
+            if response.json()["value"] != "Bob smells.":
+                printTestResult(message, 0)
+        if response.status_code == 400:
+            if response.json()["error"] != "Unable to satisfy request" or response.json()["message"] != "Error in GET":
+                printTestResult(message, 0)
+    except:
+        message = "Ginger tried to read x, but the attempt failed due to time out. (long-chain cc test)"
+        printTestResult(message, 0)
+    
+
+    
+
+    
+    
+
+
+
+    
+
+
+
+
+    
+
+    
+
+
 
 
 if __name__ == '__main__':
