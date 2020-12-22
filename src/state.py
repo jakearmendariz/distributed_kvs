@@ -42,8 +42,7 @@ class State():
         self.key_count = 0
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
-        # create a deep copy of replicas. LOOK INTO DEEP COPY VS COPY
-        # self.up_nodes = self.replicas.copy()
+
         self.vector_clock = {address:0 for address in self.local_view}
         self.logical = 0
         # ask other nodes in shard for their values upon startup
@@ -133,15 +132,12 @@ class State():
                         putting[address][key] = self.storage[key]
                     else:
                         deleting[address][key] = self.storage[key]
-        app.logger.info(f'\n\nputting dict:{putting}\n\n\n')
         # send mass storage
         for address, store in putting.items():
             if len(store) > 0:
                 if self.shard_map[address] == self.shard_id:
-                    app.logger.info(f'\n\nputting dict to replica {address}\n')
                     Request.put_store(address, store, 'replica')
                 else:
-                    app.logger.info(f'\n\nputting dict to shard {address}\n {store} \n')
                     response = Request.put_store(address, store, 'shard')
                     app.logger.info(f'shard response:{response.status_code}')
         # send mass deletion
