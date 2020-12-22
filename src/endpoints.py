@@ -15,34 +15,23 @@ Setting values
 def getter(key):
     data = request.get_json()
     if data == None: data = {}
-    causal_context = data.get('causal-context', {'queue':{}, 'logical':0})
-    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    causal_context = data.get('causal-context', {})
+    if len(causal_context) == 0 or causal_context['view'] != kvs.state.view or causal_context['repl_factor'] != kvs.state.repl_factor: 
+        causal_context = kvs.state.new_causal_context()
+    app.logger.info(f'causal context:{causal_context}\n\n')
     queue = causal_context['queue']
-    # LOGICAL CLOCKS
-    logical = causal_context['logical']
+    logical = causal_context['logical'][str(kvs.state.shard_id)]
+    #logical context, if causal context remembers a higher logical clock, don't return a value
     if logical > kvs.state.logical and key not in causal_context:
         return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
     elif logical < kvs.state.logical:
-        causal_context['logical'] = kvs.state.logical
-    # TOTAL INFORMATION
-    # if key not in queue and key in kvs.state.storage:
-    #     for cc_key in queue:
-    #         causal = Entry.compare_vector_clocks(queue[cc_key]['vector_clock'], kvs.state.storage.get(cc_key, {}).get('vector_clock', {}))
-    #         if causal == constants.GREATER_THAN or causal == constants.CONCURRENT:
-    #             # if the key doesn't belong to our shard then its okay for it to be in the future
-    #             if kvs.state.shard_map[kvs.state.maps_to(key)] == kvs.state.shard_id:
-    #                 return json.dumps({"error":"Unable to satisfy request","message":"Error in GET"}), 400
-    #         # vector clocks mismatch then the causal context is from a previous view change. Delete it
-    #         elif causal == constants.MISMATCH:
-    #             del causal_context[cc_key]
+        causal_context['logical'][str(kvs.state.shard_id)] = kvs.state.logical
     if key in kvs.state.storage:
-        app.logger.info(f'entry1:{kvs.state.storage[key]}')
         entry = kvs.state.storage[key]
         if key in queue: entry = Entry.max_of_entries(entry, queue[key])
-        app.logger.info(f'entry2:{entry}')
         causal_context['queue'][key] = entry
-        if isinstance(entry, str):
-            entry = json.loads(entry)
+        # if isinstance(entry, str):
+        #     entry = json.loads(entry)
         if entry['method'] == 'DELETE':
             return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
         else:
@@ -52,7 +41,6 @@ def getter(key):
             return json.dumps({"doesExist":True, "message":"Retrieved successfully", "value": queue[key]['value'], "address":kvs.state.address, 'causal-context':causal_context}), 200,
         return json.dumps({"doesExist":False,"error":"Key does not exist","message":"Error in GET", "address":kvs.state.address, 'causal-context':causal_context}), 404
         
-    
 
 @app.route('/kvs/<key>', methods=['PUT'])
 def putter(key):
@@ -64,17 +52,17 @@ def putter(key):
     status_code = 200 if replace else 201
     data = request.get_json()
     entry = data['entry']
-    causal_context = data['causal-context']['queue']
+    causal_context = data['causal-context']
+    if len(causal_context) == 0 or causal_context['view'] != kvs.state.view or causal_context['repl_factor'] != kvs.state.repl_factor: 
+        causal_context = kvs.state.new_causal_context()
+    queue = causal_context['queue']
     # For every key, update the value with the current causal context
-    for cc_key in causal_context.keys():
-        causal = Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
+    for cc_key in queue.keys():
+        causal = Entry.compare_entries(kvs.state.storage.get(cc_key, {}), queue[cc_key])
         if causal == constants.LESS_THAN:
             kvs.state.logical += 1
             if key not in kvs.state.storage: kvs.state.key_count += 1
-            kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
-        # elif causal == constants.MISMATCH:
-        #     if causal_context[cc_key]['created_at'] > kvs.state.storage[cc_key]['created_at']:
-        #         logical
+            kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), queue[cc_key])
     kvs.state.storage[key] = entry
     return json.dumps({"message": message, "replaced": replace}), status_code
 
@@ -88,20 +76,22 @@ def deleter(key):
     data = request.get_json()
     kvs.state.storage[key] = data['entry']
     causal_context = request.get_json().get('causal-context', {})
-    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
-    causal_context = data['causal-context']['queue']
+    if len(causal_context) == 0 or causal_context['view'] != kvs.state.view or causal_context['repl_factor'] != kvs.state.repl_factor: 
+        causal_context = kvs.state.new_causal_context()
+    queue = causal_context['queue']
 
     # For every key, update the value with the current causal context
-    for cc_key in causal_context.keys():
-        if Entry.compare_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key]) == constants.LESS_THAN:
+    for cc_key in queue.keys():
+        causal = Entry.compare_entries(kvs.state.storage.get(cc_key, {}), queue[cc_key])
+        if causal == constants.LESS_THAN:
             kvs.state.logical += 1
             if cc_key not in kvs.state.storage: kvs.state.key_count += 1
-            kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), causal_context[cc_key])
+            kvs.state.storage[cc_key] = Entry.max_of_entries(kvs.state.storage.get(cc_key, {}), queue[cc_key])
     if in_storage:
         kvs.state.key_count -= 1
         return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
     else:
-        if key in causal_context and causal_context[key]['method'] != 'DELETE':
+        if key in queue and queue[key]['method'] != 'DELETE':
             return json.dumps({"doesExist": True, "message": "Deleted successfully"}), 200
         return json.dumps({"doesExist": False, "error": "Key does not exist", "message": "Error in DELETE"}), 404
 

@@ -27,13 +27,13 @@ key value store
 @app.route('/kvs/keys/<key>', methods=['GET'])
 def get(key):
     if state.address not in state.view: return json.dumps({"error":"Unable to satisfy request", "message":"Error in GET"}), 503
-    app.logger.info(f'\n\n\nGET KEY:{state.storage.get(key, {})}')
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     data = request.get_json()
     if data == None: data = {}
     causal_context = data.get('causal-context', {})
-    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    if len(causal_context) == 0 or causal_context['view'] != state.view or causal_context['repl_factor'] != state.repl_factor: 
+        causal_context = state.new_causal_context()
     if shard_id == state.shard_id:
         response = Request.send_get(state.address, key, causal_context)
         payload = response.json()
@@ -56,7 +56,8 @@ def get(key):
 def put(key):
     data = request.get_json()
     causal_context = data.get('causal-context', {})
-    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    if len(causal_context) == 0 or causal_context['view'] != state.view or causal_context['repl_factor'] != state.repl_factor: 
+        causal_context = state.new_causal_context()
     address = state.maps_to(key)
     shard_id = state.shard_map[address]
     if shard_id == state.shard_id:
@@ -77,7 +78,7 @@ def put(key):
                 successful_broadcast = False
             else:
                 state.vector_clock[address] += 1
-                causal_context['logical'] = state.logical+1 if causal_context['logical'] <= state.logical else causal_context['logical']
+                causal_context['logical'][str(state.shard_id)] = state.logical+1 if causal_context['logical'][str(state.shard_id)] <= state.logical else causal_context['logical'][str(state.shard_id)]
         # save on local, return causal context to client
         response = Request.send_put_endpoint(state.address, key, entry, causal_context)
         payload = response.json()
@@ -97,10 +98,10 @@ def delete(key):
     shard_id = state.shard_map[address]  
     # get causal context, if empty, initalize
     causal_context = request.get_json().get('causal-context', {})
-    if len(causal_context) == 0: causal_context = {'queue':{}, 'logical':0}
+    if len(causal_context) == 0 or causal_context['view'] != state.view or causal_context['repl_factor'] != state.repl_factor: 
+        causal_context = state.new_causal_context()
     # if its in our shard, foward
     if shard_id == state.shard_id:
-        app.logger.info(f'update delete entry {state.storage[key]}')
         entry = state.update_delete_entry(state.storage[key]) if key in state.storage else state.build_delete_entry()
         # forward to replicas
         successful_broadcast = True
@@ -111,7 +112,7 @@ def delete(key):
                 successful_broadcast = False
             else:
                 state.vector_clock[address] += 1
-                causal_context['logical'] = state.logical+1 if causal_context.get('logical', 0) <= state.logical else causal_context['logical']
+                causal_context['logical'][str(state.shard_id)] = state.logical+1 if causal_context['logical'][str(state.shard_id)] <= state.logical else causal_context['logical'][str(state.shard_id)]
         # send to self
         response = Request.send_delete_endpoint(state.address, key, entry, causal_context)
         payload = response.json()

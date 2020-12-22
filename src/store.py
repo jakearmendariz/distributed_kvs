@@ -50,7 +50,6 @@ def put_store():
     data = request.get_json()
     if data['type'] == 'shard':
         for key, value in data['store'].items():
-            # build entry
             data['store'][key] = kvs.state.build_put_entry(value)
         # forward update to every replica
         for address in kvs.state.local_view:

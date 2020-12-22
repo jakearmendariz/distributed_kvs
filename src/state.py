@@ -50,6 +50,12 @@ class State():
 
     def new_vector_clock(self):
         return {address:0 for address in self.local_view}
+    
+    def new_causal_context(self):
+        logical = {shard_id:0 for shard_id in self.shard_ids}
+        logical[str(self.shard_id)] = self.logical
+        app.logger.info(f'logical clock:{logical}\n\n\n\n')
+        return {'logical':logical, 'queue':{}, 'view':self.view, 'repl_factor':self.repl_factor}
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     entry functions
@@ -107,6 +113,7 @@ class State():
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
         self.update_view(view, repl_factor)
+        self.logical = 0
         app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
     def key_migration(self, view):
