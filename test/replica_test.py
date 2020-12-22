@@ -184,7 +184,7 @@ class TestHW3(unittest.TestCase):
 	# (add, update, get, key-count, delete, key-count)'s
 	def test_1(self):
 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-		keys = 20
+		keys = 10
 		for i in range(keys):
 			id1,id2 = 1,2
 			if i%2 == 0:
@@ -223,7 +223,7 @@ class TestHW3(unittest.TestCase):
 		result = client.viewChange(build_view(0,4),nodes[1]["port"],repl_factor)
 		key_counts, total = self.get_key_counts(4)
 		self.assertEqual(total, 0)
-		keys = 50
+		keys = 10
 		for i in range(keys):
 			id1,id2 = 1,2
 			if i%2 == 0:
@@ -262,7 +262,7 @@ class TestHW3(unittest.TestCase):
 # # 	# add's, key-count, view-change, delete's, key-count
 	def test_3(self):
 		result = client.viewChange(build_view(0,2),nodes[1]["port"],1)
-		keys = 50
+		keys = 20
 		# add's
 		for i in range(keys):
 			id = 1
@@ -342,6 +342,8 @@ class TestHW3(unittest.TestCase):
 		# key-count
 		key_counts3, total3 = self.get_key_counts(3)
 		self.assertEqual(total3, 0)
+
+	
 	def test_5(self):
 		result = client.viewChange(build_view(0,1),nodes[1]["port"],1)
 		keys = 50

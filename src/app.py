@@ -7,6 +7,7 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+from store import *
 from kvs import *
 from endpoints import *
 from gossip import *
