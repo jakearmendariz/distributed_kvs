@@ -7,39 +7,6 @@ from state import State
 from static import Request, Http_Error, Entry
 import time
 import constants
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-view change
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-@app.route('/kvs/view-change', methods=['PUT'])
-def view_change():
-    view_str = request.get_json()['view']
-    replica_factor = request.get_json().get('repl-factor', kvs.state.repl_factor)
-    app.logger.info("Start broadcast view change: " + str(kvs.state.view))
-    kvs.state.broadcast_view(view_str, replica_factor)
-
-    shards = {}
-    for address in kvs.state.view:
-        response = Request.send_get(address, 'key-count', {})
-        if response.status_code == 500: continue
-        shard_id = response.json()["shard-id"]
-        key_count = response.json()['key-count']
-        if shard_id in shards:
-            key_count = min(key_count, shards[shard_id]['key-count'])
-            shards[shard_id]['key-count'] = key_count
-        else:
-            replicas = [address for address in kvs.state.view if shard_id == str(kvs.state.shard_map[address])]
-            shards[shard_id] = {"shard-id": shard_id, "key-count": key_count, "replicas": replicas}
-    return json.dumps({"message": "View change successful","shards":list(shards.values())}), 200
-
-@app.route('/kvs/node-change', methods=['PUT'])
-def node_change():
-    kvs.state.node_change(request.get_json()['view'].split(','), int(request.get_json()['repl-factor']))
-    return json.dumps({"message":"node change succeed"}), 201
-
-@app.route('/kvs/key-migration', methods=['PUT'])
-def key_migration():
-    kvs.state.key_migration(request.get_json()['view'].split(','))
-    return json.dumps({"message":"key migration succeed"}), 201
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Setting values
@@ -58,11 +25,12 @@ def getter(key):
         causal_context['logical'] = kvs.state.logical
     if key in kvs.state.storage:
         app.logger.info(f'entry1:{kvs.state.storage[key]}')
-        app.logger.info(f'queue:{queue[key]}')
         entry = kvs.state.storage[key]
         # if isinstance(queue[key], str):
         #     queue[key] = json.loads(queue[key])
-        if key in queue: entry = Entry.max_of_entries(entry, queue[key])
+        if key in queue: 
+            entry = Entry.max_of_entries(entry, queue[key])
+            app.logger.info(f'queue:{queue[key]}')
         app.logger.info(f'entry2:{entry}')
         causal_context['queue'][key] = entry
         if isinstance(entry, str):

@@ -1,7 +1,7 @@
 import requests # Note, you may need to install this package via pip (or pip3)
 
 localhost = "localhost"
-timeout = 10
+timeout = 5
 
 class Client():
     def __init__(self,causal_context_flag=True,print_response=False):

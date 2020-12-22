@@ -15,5 +15,5 @@ sleep 5;
 
 python3 test/replica_test.py
 
-docker stop node1 node2 node3 node4
-docker rm node1 node2 node3 node4
+# docker stop node1 node2 node3 node4
+# docker rm node1 node2 node3 node4

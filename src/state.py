@@ -130,9 +130,9 @@ class State():
                 self.storage[key]['vector_clock'] = self.new_vector_clock()
                 for address in self.replicas:
                     if self.storage[key]['method'] != 'DELETE':
-                        putting[address][key] = self.storage[key]['value']
+                        putting[address][key] = self.storage[key]
                     else:
-                        deleting[address][key] = self.storage[key]['value']
+                        deleting[address][key] = self.storage[key]
         app.logger.info(f'\n\nputting dict:{putting}\n\n\n')
         # send mass storage
         for address, store in putting.items():
