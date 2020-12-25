@@ -1,7 +1,7 @@
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 app.py
 
-app.py starts the application, all functionality exists in kvs.py and proxy.py
+app.py starts the application
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 from flask import Flask, request
 

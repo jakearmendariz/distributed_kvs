@@ -1,16 +1,9 @@
 # Assignment 4
 Team: Dorothy, Joshua, Jake, Julian
 
-
-# TODO
-Logical clocks were designed to only work on a shard to shard basis.
-This creates problems for causal consistency when working with multiple shards
-
-We need to implement a solution to this
-
 # Design
 ## Goal
-Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, your team’s key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
+Implement a distributed key-value store that is partition-tolerant, available, and causally consistent. In other words, in the event of a partition, key-value store is expected to be available, while still providing some consistency–specifically causal consistency.
 
 ## Vocabulary
 ### Server State
@@ -31,8 +24,8 @@ Every value stored is saved as an entry json object: `{'value':value, 'vector_cl
 An entry is greater than, or further in the future of another iff its vector clock is greater or concurrent with a timestamp larger
 
 ### Causal Context
-Every client can maintain a causual context that will display their most recent operation. The operation will be saved as a entry plus a key so
-`'key':{'value':value, 'vector_clock':vc_of_recent_request, 'method':GET or PUT or DELETE, 'created_at:'timestamp'}`
+After every PUT or DELETE, if a broadcast to all replicas is unsuccessful. The update will be stored not only in server's queue, but inside the client as well for causal context on their following requests. In this way we can assure causal consistency. If a client interacts with a shard (under partition), it will save it's logical clock number. If the client tries to read from shard (to a different replica) the shard can see the most recent logical clock value it has seen. If out of date and the most recent value is not in queue, return a 400. Otherwise in every other scenario the server will remain available
+`{'logical':{shard_id:logical_clock=>For every shard}, 'queue':{key:value}, 'view':list_of_addresses, 'repl_factor':replication factor}`
 
 ### Consistent Hashing
 To distribute values across shards we will use consistent hashing. Every node will have multiple virtual nodes represented by hash values, when a key hashes in the range of an address, it will be sent to that address's shard and be replicated in every node

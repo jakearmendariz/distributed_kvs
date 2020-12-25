@@ -1,6 +1,10 @@
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+gossip.py
+
+Starts gossip every 2.3 seconds. Contains the gossip function and endpoint
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
-import atexit
 from app import app
 import constants
 from static import Request, Http_Error, Entry

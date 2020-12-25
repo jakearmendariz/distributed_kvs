@@ -7,8 +7,6 @@ from app import app
 from hashlib import sha1
 import os
 import requests
-import random
-import threading
 import multiprocessing
 import copy
 import constants
@@ -54,7 +52,6 @@ class State():
     def new_causal_context(self):
         logical = {shard_id:0 for shard_id in self.shard_ids}
         logical[str(self.shard_id)] = self.logical
-        app.logger.info(f'logical clock:{logical}\n\n\n\n')
         return {'logical':logical, 'queue':{}, 'view':self.view, 'repl_factor':self.repl_factor}
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -88,19 +85,12 @@ class State():
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     view change functions
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    def broadcast_view(self, view, repl_factor, multi_threaded = False):
+    def broadcast_view(self, view, repl_factor):
         addresses = set(sorted(view.split(',')) + self.view)
         for address in addresses:
                 Request.send_node_change(address, view, repl_factor)
-        if not multi_threaded:
-            for address in addresses:
-                Request.send_key_migration(address, view)
-        else:
-            processes = []
-            for address in addresses:
-                processes.append(multiprocessing.Process(target=Request.send_key_migration, args=(address, view)))
-                processes[-1].start()
-                processes[-1].join()
+        for address in addresses:
+            Request.send_key_migration(address, view)
         app.logger.info('Broadcast complete')
 
 
@@ -120,7 +110,7 @@ class State():
         app.logger.info("Key migration starts")
         deleting = {address:{} for address in self.view}
         putting = {address:{} for address in self.view}
-
+        # rehash every key, if it belongs in different shard, put else. If in our shard, restart vector clock
         for key in list(self.storage.keys()):
             address = self.maps_to(key)
             shard_id = self.shard_map[address]
@@ -143,8 +133,7 @@ class State():
                 if self.shard_map[address] == self.shard_id:
                     Request.put_store(address, store, 'replica')
                 else:
-                    response = Request.put_store(address, store, 'shard')
-                    app.logger.info(f'shard response:{response.status_code}')
+                    Request.put_store(address, store, 'shard')
         # send mass deletion
         for address, store in deleting.items():
             if len(store) > 0:
@@ -154,6 +143,9 @@ class State():
                     Request.delete_store(address, store, 'shard')
         app.logger.info(f'Key migration complete, key_count:{self.key_count}')
 
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    forwarding writes and deletions
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     # sends a value to a shard, first successful request wins
     def put_to_shard(self, shard_id, key, value, causal_context={'queue':{}, 'logical':0}):
         for i in range(self.repl_factor):
@@ -165,6 +157,19 @@ class State():
                 return payload, response.status_code
         # unreachable by TA guarentee at least one node will be available in every shard
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in PUT"}), 503
+    
+    def put_to_replicas(self, key, entry, causal_context):
+        successful_broadcast = True
+        for address in self.replicas:
+            response = Request.send_put_endpoint(address, key, entry, causal_context)
+            status_code = response.status_code
+            if status_code == 500:
+                self.queue[address][key] = entry
+                successful_broadcast = False
+            else:
+                self.vector_clock[address] += 1
+                causal_context['logical'][str(self.shard_id)] = self.logical+1 if causal_context['logical'][str(self.shard_id)] <= self.logical else causal_context['logical'][str(self.shard_id)]
+        return successful_broadcast
 
     # deletes key:value from shard
     def delete_from_shard(self, shard_id, key, causal_context={'queue':{}, 'logical':0}):
@@ -178,6 +183,21 @@ class State():
         # unreachable
         return json.dumps({"error":"Unable to satisfy request", "message":"Error in DELETE", "causal-context":causal_context}), 503
 
+    def delete_from_replicas(self, key, entry, causal_context):
+        successful_broadcast = True
+        for address in self.replicas:
+            response = Request.send_delete_endpoint(address, key, entry)
+            if response.status_code == 500:
+                self.queue[address][key] = entry
+                successful_broadcast = False
+            else:
+                self.vector_clock[address] += 1
+                causal_context['logical'][str(self.shard_id)] = self.logical+1 if causal_context['logical'][str(self.shard_id)] <= self.logical else causal_context['logical'][str(self.shard_id)]
+        return successful_broadcast
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    view-change function
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     # Updates all instance variables according to an updated view
     def update_view(self, updated_view, repl_factor):
         self.view = sorted(list(updated_view))
