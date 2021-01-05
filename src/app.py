@@ -3,7 +3,7 @@ app.py
 
 app.py starts the application
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-from flask import Flask, request
+from flask import Flask
 
 app = Flask(__name__)
 

@@ -1,19 +1,17 @@
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 state.py
 
-Handles the state
+contains entire application state. Including storage, mappings, causal data and view
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 from app import app
 from hashlib import sha1
 import os
 import requests
-import multiprocessing
 import copy
 import constants
 import time
 import json
 from static import Request, Http_Error, Entry
-from concurrent.futures import (ThreadPoolExecutor, wait)
 
 class State():
     def __init__(self):
@@ -41,7 +39,6 @@ class State():
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
 
-        self.vector_clock = {address:0 for address in self.local_view}
         self.logical = 0
         # ask other nodes in shard for their values upon startup
         self.queue = {address:{} for address in self.local_view}
@@ -53,6 +50,14 @@ class State():
         logical = {shard_id:0 for shard_id in self.shard_ids}
         logical[str(self.shard_id)] = self.logical
         return {'logical':logical, 'queue':{}, 'view':self.view, 'repl_factor':self.repl_factor}
+
+    def inspect_causal(self, queue):
+        for key in queue.keys():
+            causal = Entry.compare_entries(self.storage.get(key, {}), queue[key])
+            if causal == constants.LESS_THAN:
+                self.logical += 1
+                if key not in self.storage:self.key_count += 1
+                self.storage[key] = Entry.max_of_entries(self.storage.get(key, {}), queue[key])
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     entry functions
@@ -91,23 +96,16 @@ class State():
                 Request.send_node_change(address, view, repl_factor)
         for address in addresses:
             Request.send_key_migration(address, view)
-        app.logger.info('Broadcast complete')
 
 
     def node_change(self, view, repl_factor):
-        app.logger.info("Node change starts: " + str(len(self.virtual_map.values())) + " nodes.")
-        if set(view) == set(self.view):
-            app.logger.info("No view change")
-            return
-        app.logger.info("View changed from " + str(self.view) + " to " + str(view))
+        if set(view) == set(self.view): return
         self.add_nodes(set(view) - set(self.view))
         self.delete_nodes(set(self.view) - set(view))
         self.update_view(view, repl_factor)
         self.logical = 0
-        app.logger.info("Node change complete: " + str(len(self.virtual_map.values())) + " nodes.")
 
     def key_migration(self, view):
-        app.logger.info("Key migration starts")
         deleting = {address:{} for address in self.view}
         putting = {address:{} for address in self.view}
         # rehash every key, if it belongs in different shard, put else. If in our shard, restart vector clock
@@ -131,17 +129,16 @@ class State():
         for address, store in putting.items():
             if len(store) > 0:
                 if self.shard_map[address] == self.shard_id:
-                    Request.put_store(address, store, 'replica')
+                    Request.put_store(address, store, constants.REPLICA)
                 else:
-                    Request.put_store(address, store, 'shard')
+                    Request.put_store(address, store, constants.SHARD)
         # send mass deletion
         for address, store in deleting.items():
             if len(store) > 0:
                 if self.shard_map[address] == self.shard_id:
-                    Request.delete_store(address, store, 'replica')
+                    Request.delete_store(address, store, constants.REPLICA)
                 else:
-                    Request.delete_store(address, store, 'shard')
-        app.logger.info(f'Key migration complete, key_count:{self.key_count}')
+                    Request.delete_store(address, store, constants.SHARD)
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     forwarding writes and deletions
@@ -167,7 +164,6 @@ class State():
                 self.queue[address][key] = entry
                 successful_broadcast = False
             else:
-                self.vector_clock[address] += 1
                 causal_context['logical'][str(self.shard_id)] = self.logical+1 if causal_context['logical'][str(self.shard_id)] <= self.logical else causal_context['logical'][str(self.shard_id)]
         return successful_broadcast
 
@@ -191,7 +187,6 @@ class State():
                 self.queue[address][key] = entry
                 successful_broadcast = False
             else:
-                self.vector_clock[address] += 1
                 causal_context['logical'][str(self.shard_id)] = self.logical+1 if causal_context['logical'][str(self.shard_id)] <= self.logical else causal_context['logical'][str(self.shard_id)]
         return successful_broadcast
 
@@ -208,7 +203,6 @@ class State():
         self.shard_id = self.shard_map.get(self.address, 0)
         self.local_view = [address for address in self.view if self.shard_map[address] == self.shard_id]
         self.replicas = [address for address in self.local_view if address != self.address]
-        self.vector_clock = {address:0 for address in self.local_view}
 
     def add_nodes(self, adding):
         for address in adding:

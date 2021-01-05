@@ -1,3 +1,9 @@
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+store.py
+
+updates the store upon view change operations. Multiple values being sent at a time
+only internal operations, not external endpoints
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 import kvs
 from app import app
 from flask import request
@@ -48,14 +54,14 @@ storing packages of values
 @app.route('/kvs/view-change/store', methods=['PUT'])
 def put_store():
     data = request.get_json()
-    if data['type'] == 'shard':
+    if data['type'] == constants.SHARD:
         for key, value in data['store'].items():
             data['store'][key] = kvs.state.build_put_entry(value)
         # forward update to every replica
         for address in kvs.state.local_view:
-            Request.put_store(address, data['store'], 'replica')
+            Request.put_store(address, data['store'], constants.REPLICA)
         return json.dumps({'message':'success'}), 200
-    elif data['type'] == 'replica':
+    elif data['type'] == constants.REPLICA:
         for key, entry in data['store'].items():
             if not kvs.state.storage_contains(key):
                 kvs.state.key_count += 1
@@ -68,15 +74,14 @@ def put_store():
 @app.route('/kvs/view-change/store', methods=['DELETE'])
 def delete_store():
     data = request.get_json()
-    if data['type'] == 'shard':
+    if data['type'] == constants.SHARD:
         for key, _value in data['store'].items():
-            # build entry
             data['store'][key] = kvs.state.build_delete_entry()
         # forward update to every replica
         for address in kvs.state.local_view:
-            Request.delete_store(address, data['store'], 'replica')
+            Request.delete_store(address, data['store'], constants.REPLICA)
         return json.dumps({'message':'success'}), 200
-    elif data['type'] == 'replica':
+    elif data['type'] == constants.REPLICA:
         for key, _value in data['store'].items():
             if kvs.state.storage_contains(key):
                 kvs.state.key_count -= 1

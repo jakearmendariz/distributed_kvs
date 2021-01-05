@@ -192,3 +192,4 @@ class Http_Error():
     def __init__(self, status_code, msg = "Error"):
         self.status_code = status_code
         self.msg = msg
+    
