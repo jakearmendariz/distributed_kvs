@@ -1,5 +1,5 @@
 # Assignment 4
-Team: Dorothy, Joshua, Jake, Julian
+Team: Dorothy, Joshua, Jake
 
 # Design
 ## Goal
